@@ -4,9 +4,9 @@ from sqlalchemy.orm import sessionmaker
 import os
 from dotenv import load_dotenv
 
-
+load_dotenv()
 # ── Update these credentials to match your PostgreSQL setup ───────
-DATABASE_URL = "postgresql+psycopg2://postgres:root@localhost:5432/authdb_new"
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 engine = create_engine(
     DATABASE_URL,
