@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard — ShopFast</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --brand: #6c5ce7;
+            --brand2: #a29bfe;
+            --accent: #fd79a8;
+            --green: #00b894;
+            --red: #d63031;
+            --dark: #1a1a2e;
+            --mid: #2d2d44;
+            --card: #ffffff;
+            --bg: #f4f3ff;
+            --text: #2d2d44;
+            --muted: #8888a0;
+            --border: #e8e6ff;
+        }
+        body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+        /* ── Header ── */
+        header {
+            background: var(--dark);
+            color: white;
+            padding: 0 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 62px;
+            box-shadow: 0 2px 16px rgba(0,0,0,0.2);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+        .header-left { display: flex; align-items: center; gap: 14px; }
+        .logo { font-family: 'Sora', sans-serif; font-size: 18px; font-weight: 700; }
+        .logo span { color: var(--brand2); }
+        .welcome-chip {
+            background: rgba(162,155,254,0.18);
+            border: 1px solid rgba(162,155,254,0.3);
+            color: var(--brand2);
+            font-size: 13px;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-family: 'Sora', sans-serif;
+        }
+        .header-right { display: flex; align-items: center; gap: 10px; }
+        .hdr-link {
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            font-size: 13px;
+            padding: 6px 12px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        .hdr-link:hover { color: white; background: rgba(255,255,255,0.1); }
+        .logout-btn {
+            background: rgba(214,48,49,0.18);
+            color: #ff7675;
+            border: 1px solid rgba(214,48,49,0.3);
+            padding: 7px 16px;
+            cursor: pointer;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: 'DM Sans', sans-serif;
+            transition: all 0.2s;
+        }
+        .logout-btn:hover { background: rgba(214,48,49,0.28); color: white; }
+
+        /* ── Tab Bar ── */
+        .tab-bar {
+            background: white;
+            border-bottom: 2px solid var(--border);
+            padding: 0 28px;
+            display: flex;
+            gap: 4px;
+        }
+        .tab {
+            padding: 15px 22px;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--muted);
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            font-weight: 600;
+            font-family: 'Sora', sans-serif;
+            transition: all 0.2s;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+        .tab:hover { color: var(--brand); background: #f4f3ff; }
+        .tab.active { color: var(--brand); border-bottom-color: var(--brand); }
+
+        .section { display: none; }
+        .section.active { display: block; animation: fadeSlide 0.3s ease; }
+        @keyframes fadeSlide { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ── Profile ── */
+        .profile-wrap {
+            max-width: 520px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        .profile-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 4px 24px rgba(108,92,231,0.10);
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        .profile-banner {
+            height: 90px;
+            background: linear-gradient(135deg, var(--brand), var(--brand2), var(--accent));
+            position: relative;
+        }
+        .profile-avatar {
+            width: 72px;
+            height: 72px;
+            background: white;
+            border-radius: 50%;
+            border: 4px solid white;
+            position: absolute;
+            bottom: -36px;
+            left: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            box-shadow: 0 4px 16px rgba(108,92,231,0.2);
+        }
+        .profile-body { padding: 50px 28px 28px; }
+        .profile-name { font-family: 'Sora', sans-serif; font-size: 20px; font-weight: 700; color: var(--dark); margin-bottom: 4px; }
+        .profile-email-tag { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+        .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+        .field { margin-bottom: 16px; }
+        .field label {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--muted);
+            display: block;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            font-family: 'Sora', sans-serif;
+        }
+        .field input, .field select {
+            width: 100%;
+            padding: 11px 14px;
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            font-size: 14px;
+            outline: none;
+            font-family: 'DM Sans', sans-serif;
+            color: var(--text);
+            background: white;
+            transition: border 0.2s, box-shadow 0.2s;
+        }
+        .field input:focus, .field select:focus {
+            border-color: var(--brand);
+            box-shadow: 0 0 0 3px rgba(108,92,231,0.12);
+        }
+        .field input:disabled, .field select:disabled {
+            background: #fafafe;
+            color: var(--mid);
+            cursor: default;
+        }
+        .fields-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .edit-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, var(--brand), var(--brand2));
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 700;
+            font-family: 'DM Sans', sans-serif;
+            transition: opacity 0.2s, transform 0.15s;
+            letter-spacing: 0.3px;
+            margin-top: 6px;
+        }
+        .edit-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        #msg { text-align: center; margin-top: 12px; font-size: 13px; min-height: 18px; font-weight: 500; }
+        .success { color: var(--green); }
+        .error   { color: var(--red); }
+
+        /* ── Orders ── */
+        .orders-wrap { max-width: 700px; margin: 32px auto; padding: 0 20px; }
+        .orders-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        .orders-header h3 { font-family: 'Sora', sans-serif; font-size: 18px; font-weight: 700; color: var(--dark); }
+        .orders-count { background: var(--brand2); color: white; font-size: 12px; font-weight: 700; padding: 3px 12px; border-radius: 20px; font-family: 'Sora', sans-serif; }
+
+        .order-card {
+            background: white;
+            border-radius: 16px;
+            margin-bottom: 18px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(108,92,231,0.08);
+            border: 1px solid var(--border);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .order-card:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(108,92,231,0.13); }
+        .order-head {
+            background: linear-gradient(90deg, #f4f3ff, #fff);
+            padding: 14px 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+        }
+        .order-id { font-weight: 700; font-size: 15px; color: var(--dark); font-family: 'Sora', sans-serif; }
+        .order-date { font-size: 12px; color: var(--muted); margin-top: 2px; }
+        .order-status {
+            font-size: 11px;
+            padding: 5px 14px;
+            border-radius: 20px;
+            background: #d4f8ec;
+            color: #00856f;
+            font-weight: 700;
+            font-family: 'Sora', sans-serif;
+            letter-spacing: 0.3px;
+        }
+        .order-status.pending  { background: #fff3cd; color: #a07000; }
+        .order-status.cancelled { background: #ffe0e0; color: var(--red); }
+        .order-items { padding: 10px 18px; }
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            padding: 7px 0;
+            border-bottom: 1px solid #f4f3ff;
+            color: var(--text);
+        }
+        .order-item:last-child { border-bottom: none; }
+        .order-item span:first-child { color: var(--mid); }
+        .order-item span:last-child { font-weight: 600; color: var(--brand); font-family: 'Sora', sans-serif; }
+        .order-foot {
+            padding: 12px 18px;
+            text-align: right;
+            font-weight: 700;
+            font-size: 16px;
+            color: var(--brand);
+            border-top: 1px solid var(--border);
+            font-family: 'Sora', sans-serif;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .order-foot span:first-child { font-size: 12px; color: var(--muted); font-weight: 500; font-family: 'DM Sans', sans-serif; }
+        .no-orders { text-align: center; color: var(--muted); padding: 60px 20px; }
+        .no-orders .no-icon { font-size: 52px; margin-bottom: 14px; }
+        .no-orders p { margin-bottom: 16px; }
+        .no-orders a { color: var(--brand); font-weight: 600; text-decoration: none; }
+        .no-orders a:hover { text-decoration: underline; }
+
+        /* skeleton loader */
+        .skeleton {
+            background: linear-gradient(90deg, #f0eeff 25%, #e6e0ff 50%, #f0eeff 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.4s infinite;
+            border-radius: 10px;
+            height: 18px;
+            margin-bottom: 10px;
+        }
+        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="header-left">
+        <div class="logo">Shop<span>Fast</span> 🛍️</div>
+        <div class="welcome-chip">👋 <span id="usernameDisplay">User</span></div>
+    </div>
+    <div class="header-right">
+        <a href="/shop" class="hdr-link">🛍️ Back to Shop</a>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+</header>
+
+<div class="tab-bar">
+    <div class="tab active" onclick="switchTab('profile', this)">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        My Profile
+    </div>
+    <div class="tab" onclick="switchTab('orders', this)">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-4 0v2M8 7V5a2 2 0 0 0-4 0v2"/></svg>
+        My Orders
+    </div>
+</div>
+
+<!-- Profile Section -->
+<div class="section active" id="section-profile">
+    <div class="profile-wrap">
+        <div class="profile-card">
+            <div class="profile-banner">
+                <div class="profile-avatar">👤</div>
+            </div>
+            <div class="profile-body">
+                <div class="profile-name" id="profileName">Loading…</div>
+                <div class="profile-email-tag" id="profileEmailTag"></div>
+                <div class="divider"></div>
+
+                <div class="fields-row">
+                    <div class="field">
+                        <label>Username</label>
+                        <input type="text" id="username" disabled>
+                    </div>
+                    <div class="field">
+                        <label>Email</label>
+                        <input type="email" id="email" disabled>
+                    </div>
+                </div>
+                <div class="field">
+                    <label>Phone</label>
+                    <input type="text" id="phone" disabled>
+                </div>
+                <div class="fields-row">
+                    <div class="field">
+                        <label>Date of Birth</label>
+                        <input type="date" id="dob" disabled>
+                    </div>
+                    <div class="field">
+                        <label>Gender</label>
+                        <select id="gender" disabled>
+                            <option value="">Select</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button class="edit-btn" id="editBtn" onclick="handleEdit()">✏️ Edit Profile</button>
+                <p id="msg"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Orders Section -->
+<div class="section" id="section-orders">
+    <div class="orders-wrap">
+        <div class="orders-header">
+            <h3>Order History</h3>
+            <span class="orders-count" id="ordersCount">—</span>
+        </div>
+        <div id="orders-list">
+            <div><div class="skeleton" style="height:100px;border-radius:16px;margin-bottom:18px"></div>
+            <div class="skeleton" style="height:100px;border-radius:16px;margin-bottom:18px"></div></div>
+        </div>
+    </div>
+</div>
+
+<script>
+const BASE = "http://127.0.0.1:8000";
+let isEditing = false;
+
+window.onload = function () {
+    const email = localStorage.getItem("email");
+    if (!email) { window.location.href = "/login"; return; }
+
+    // ── Role-based access: only admins can edit profile ──
+    const isAdmin = localStorage.getItem("is_admin") === "true";
+    const editBtn = document.getElementById("editBtn");
+    if (!isAdmin) {
+        editBtn.style.display = "none"; // hide Edit Profile button for normal users
+    }
+
+    fetch(`${BASE}/profile?email=${encodeURIComponent(email)}`)
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById("username").value = data.username || "";
+            document.getElementById("email").value    = data.email    || "";
+            document.getElementById("phone").value    = data.phone    || "";
+            document.getElementById("dob").value      = data.dob      || "";
+            document.getElementById("gender").value   = data.gender   || "";
+            const name = data.username || "User";
+            document.getElementById("usernameDisplay").textContent = name;
+            document.getElementById("profileName").textContent = name;
+            document.getElementById("profileEmailTag").textContent = data.email || "";
+
+            // Show role badge below name
+            const isAdmin = localStorage.getItem("is_admin") === "true";
+            const emailTag = document.getElementById("profileEmailTag");
+            const roleBadge = document.createElement("div");
+            roleBadge.style.cssText = "margin-top:8px;";
+            if (isAdmin) {
+                roleBadge.innerHTML = `<span style="background:#ebe8ff;color:#6c5ce7;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;font-family:'Sora',sans-serif;">👑 Admin</span>`;
+            } else {
+                roleBadge.innerHTML = `<span style="background:#f4f3ff;color:#8888a0;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;font-family:'Sora',sans-serif;">👤 View Only — Contact admin to edit profile</span>`;
+            }
+            emailTag.after(roleBadge);
+        })
+        .catch(() => showMsg("Failed to load profile", "error"));
+
+    if (window.location.hash === "#orders") {
+        switchTab("orders", document.querySelectorAll(".tab")[1]);
+    }
+};
+
+function switchTab(name, el) {
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+    el.classList.add("active");
+    document.getElementById("section-" + name).classList.add("active");
+    if (name === "orders") loadOrders();
+}
+
+function setDisabled(state) {
+    ["username", "phone", "dob", "gender"].forEach(id =>
+        document.getElementById(id).disabled = state
+    );
+}
+
+function handleEdit() {
+    if (!isEditing) {
+        setDisabled(false);
+        document.getElementById("editBtn").textContent = "💾 Save Changes";
+        isEditing = true;
+    } else {
+        saveProfile();
+    }
+}
+
+function saveProfile() {
+    const email    = localStorage.getItem("email");
+    const username = document.getElementById("username").value.trim();
+    const phone    = document.getElementById("phone").value.trim();
+    const dob      = document.getElementById("dob").value;
+    const gender   = document.getElementById("gender").value;
+
+    const body = { email };
+    if (username) body.username = username;
+    if (phone)    body.phone    = phone;
+    if (dob)      body.dob      = dob;
+    if (gender)   body.gender   = gender;
+
+    fetch(`${BASE}/update-profile`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.detail) { showMsg(data.detail, "error"); return; }
+        showMsg(data.message, "success");
+        localStorage.setItem("username", username);
+        document.getElementById("usernameDisplay").textContent = username;
+        document.getElementById("profileName").textContent = username;
+        setDisabled(true);
+        document.getElementById("editBtn").textContent = "✏️ Edit Profile";
+        isEditing = false;
+    })
+    .catch(() => showMsg("Server error", "error"));
+}
+
+function loadOrders() {
+    const email = localStorage.getItem("email");
+    fetch(`${BASE}/orders?email=${encodeURIComponent(email)}`)
+        .then(r => r.json())
+        .then(orders => {
+            const list = document.getElementById("orders-list");
+            const countEl = document.getElementById("ordersCount");
+            countEl.textContent = `${orders.length} order${orders.length !== 1 ? 's' : ''}`;
+
+            if (!orders.length) {
+                list.innerHTML = `
+                    <div class="no-orders">
+                        <div class="no-icon">📦</div>
+                        <p>You haven't placed any orders yet.</p>
+                        <a href="/shop">Start shopping →</a>
+                    </div>`;
+                return;
+            }
+            list.innerHTML = orders.map(o => {
+                const statusClass = o.status === 'pending' ? 'pending' : o.status === 'cancelled' ? 'cancelled' : '';
+                return `
+                <div class="order-card">
+                    <div class="order-head">
+                        <div>
+                            <div class="order-id"># ${o.order_id}</div>
+                            <div class="order-date">${new Date(o.created_at).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'})}</div>
+                        </div>
+                        <span class="order-status ${statusClass}">${o.status.charAt(0).toUpperCase() + o.status.slice(1)}</span>
+                    </div>
+                    <div class="order-items">
+                        ${o.items.map(i => `
+                            <div class="order-item">
+                                <span>${i.product_name} × ${i.quantity}</span>
+                                <span>₹${Number(i.subtotal).toLocaleString()}</span>
+                            </div>
+                        `).join("")}
+                    </div>
+                    <div class="order-foot">
+                        <span>${o.items.length} item${o.items.length !== 1 ? 's' : ''}</span>
+                        <span>₹${Number(o.total).toLocaleString()}</span>
+                    </div>
+                </div>`;
+            }).join("");
+        })
+        .catch(() => {
+            document.getElementById("orders-list").innerHTML =
+                `<div class="no-orders"><div class="no-icon">⚠️</div><p>Failed to load orders.</p></div>`;
+        });
+}
+
+function showMsg(text, type) {
+    const el = document.getElementById("msg");
+    el.textContent = text;
+    el.className = type;
+}
+
+function logout() { localStorage.clear(); window.location.href = "/login"; }
+</script>
+
+</body>
+</html>

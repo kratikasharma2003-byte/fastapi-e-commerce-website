@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Payment Successful | ShopFast</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(120deg, #4facfe, #00f2fe);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+        }
+
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            width: 400px;
+            text-align: center;
+            box-shadow: 0px 10px 25px rgba(0,0,0,0.2);
+        }
+
+        .icon {
+            font-size: 60px;
+            color: #28a745;
+        }
+
+        h2 {
+            margin-top: 10px;
+            color: #333;
+        }
+
+        p {
+            color: #666;
+            margin: 15px 0;
+        }
+
+        .btn {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 12px 20px;
+            background: #4facfe;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: 0.3s;
+        }
+
+        .btn:hover {
+            background: #007bff;
+        }
+
+        .details {
+            margin-top: 20px;
+            text-align: left;
+            font-size: 14px;
+            color: #444;
+        }
+
+        .details strong {
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="icon">✅</div>
+
+    <h2>Payment Successful</h2>
+    <p>Your order has been placed successfully.</p>
+
+    <!-- Optional dynamic data -->
+    <div class="details">
+        <p><strong>Order ID:</strong> <span id="orderId">Loading...</span></p>
+        <p><strong>Status:</strong> Paid</p>
+    </div>
+
+    <a href="/shop" class="btn">Continue Shopping</a>
+</div>
+
+<script>
+    // Get order_id from URL if available
+    const params = new URLSearchParams(window.location.search);
+    const orderId = params.get("order_id");
+
+    if (orderId) {
+        document.getElementById("orderId").innerText = orderId;
+    } else {
+        document.getElementById("orderId").innerText = "N/A";
+    }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShopFast — Payment Failed</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --bg: #f5f3ee; --surface: #fff; --border: #e2ddd5; --text: #1a1814; --muted: #7a7670; --danger: #c0392b; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+    padding: 3rem 2.5rem; max-width: 420px; width: 100%; text-align: center;
+    box-shadow: 0 4px 32px rgba(0,0,0,.08);
+  }
+  .icon-wrap {
+    width: 72px; height: 72px; border-radius: 50%; background: #fdf0ef;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 1.5rem;
+    animation: pop .4s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  @keyframes pop { from{transform:scale(0);opacity:0} to{transform:scale(1);opacity:1} }
+  h1 { font-family: 'Syne', sans-serif; font-size: 1.5rem; font-weight: 700; margin-bottom: .5rem; }
+  p { color: var(--muted); font-size: 0.9rem; line-height: 1.6; margin-bottom: 2rem; }
+  .btn {
+    display: block; width: 100%; padding: 13px; border-radius: 12px;
+    font-family: 'Syne', sans-serif; font-size: 0.95rem; font-weight: 600;
+    cursor: pointer; text-decoration: none; text-align: center; transition: all .2s; margin-bottom: 10px;
+  }
+  .btn-primary { background: var(--text); color: #fff; border: none; }
+  .btn-primary:hover { background: #2d2b26; }
+  .btn-outline { background: none; color: var(--text); border: 1px solid var(--border); }
+  .btn-outline:hover { background: var(--bg); }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="icon-wrap">
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+      <path d="M18 6L6 18M6 6l12 12" stroke="#c0392b" stroke-width="2.5" stroke-linecap="round"/>
+    </svg>
+  </div>
+  <h1>Payment Failed</h1>
+  <p>Your payment could not be processed. Your cart has been saved — please try again or choose a different payment method.</p>
+  <a href="/cart-page" class="btn btn-primary">Return to Cart</a>
+  <a href="/shop" class="btn btn-outline">Continue Shopping</a>
+</div>
+</body>
+</html>

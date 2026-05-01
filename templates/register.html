@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Register</title>
+<style>
+body {
+    font-family: Arial;
+    background: linear-gradient(120deg, #4facfe, #00f2fe);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px 0;
+}
+.container {
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+    width: 350px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+h2 { text-align: center; }
+label { font-size: 13px; color: #555; }
+input, select {
+    width: 100%;
+    padding: 10px;
+    margin: 5px 0 2px 0;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+.password-wrapper {
+    position: relative;
+}
+.password-wrapper input {
+    padding-right: 40px;
+}
+.toggle-password {
+    position: absolute;
+    right: 10px;
+    top: 35px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #555;
+}
+button {
+    width: 100%;
+    padding: 10px;
+    background: #4facfe;
+    border: none;
+    color: white;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 8px;
+}
+button:hover { background: #0077ff; }
+.message { text-align: center; margin-top: 10px; color: green; }
+.error   { color: red; font-size: 12px; margin-bottom: 4px; }
+p { text-align: center; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Register</h2>
+
+    <label>Username</label>
+    <input type="text" id="username" placeholder="Enter username">
+    <div class="error" id="usernameError"></div>
+
+    <label>Email</label>
+    <input type="email" id="email" placeholder="Enter email">
+    <div class="error" id="emailError"></div>
+
+    <label>Password</label>
+    <div class="password-wrapper">
+    <input type="password" id="password" placeholder="Enter password">
+    <span class="toggle-password" onclick="togglePassword('password', this)">👁️</span>
+    </div>
+    <div class="error" id="passwordError"></div> <!-- ADD THIS -->
+
+    <label>Confirm Password</label>
+    <div class="password-wrapper">
+    <input type="password" id="confirm_password" placeholder="Confirm password">
+    <span class="toggle-password" onclick="togglePassword('confirm_password', this)">👁️</span>
+    </div>
+    <div class="error" id="confirmError"></div> <!-- ADD THIS -->
+    
+
+    <label>Phone</label>
+    <input type="text" id="phone" placeholder="Enter phone number">
+    <div class="error" id="phoneError"></div>
+
+    <label>Date of Birth</label>
+    <input type="date" id="dob">
+    <div class="error" id="dobError"></div>
+
+    <label>Gender</label>
+    <select id="gender">
+        <option value="">Select Gender</option>
+        <option value="male">Male</option>
+        <option value="female">Female</option>
+        <option value="other">Other</option>
+    </select>
+    <div class="error" id="genderError"></div>
+
+    <button onclick="register()">Register</button>
+
+    <div class="message" id="registerMsg"></div>
+    <div class="error"   id="registerError"></div>
+
+    <p><a href="/login">Already have an account? Login</a></p>
+</div>
+
+<script>
+function togglePassword(fieldId, element) {
+    const input = document.getElementById(fieldId);
+    
+    if (input.type === "password") {
+        input.type = "text";
+        element.innerText = "🙈"; // hide icon
+    } else {
+        input.type = "password";
+        element.innerText = "👁️"; // show icon
+    }
+}
+
+async function register() {
+    // clear errors
+    ["usernameError","emailError","passwordError","confirmError",
+     "phoneError","dobError","genderError","registerError"].forEach(
+        id => document.getElementById(id).innerText = ""
+    );
+    document.getElementById("registerMsg").innerText = "";
+
+    const data = {
+        username:         document.getElementById("username").value.trim(),
+        email:            document.getElementById("email").value.trim(),
+        password:         document.getElementById("password").value,
+        confirm_password: document.getElementById("confirm_password").value,
+        phone:            document.getElementById("phone").value.trim(),
+        dob:              document.getElementById("dob").value,
+        gender:           document.getElementById("gender").value
+    };
+
+    let hasError = false;
+
+    if (!data.username) {
+        document.getElementById("usernameError").innerText = "Username is required"; hasError = true;
+    } else if (!/^[a-zA-Z0-9_]{3,20}$/.test(data.username)) {
+        document.getElementById("usernameError").innerText = "3-20 characters: letters, numbers, underscore"; hasError = true;
+    }
+
+    if (!data.email) {
+        document.getElementById("emailError").innerText = "Email is required"; hasError = true;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+        document.getElementById("emailError").innerText = "Invalid email format"; hasError = true;
+    }
+
+    if (!data.password) {
+        document.getElementById("passwordError").innerText = "Password is required"; hasError = true;
+    } else if (data.password.length < 6 ||
+               !/[A-Z]/.test(data.password) ||
+               !/[a-z]/.test(data.password) ||
+               !/[0-9]/.test(data.password) ||
+               !/[!@#$%^&*]/.test(data.password)) {
+        document.getElementById("passwordError").innerText =
+            "Min 6 chars with uppercase, lowercase, number, special char (!@#$%^&*)"; hasError = true;
+    }
+
+    if (!data.confirm_password) {
+        document.getElementById("confirmError").innerText = "Please confirm password"; hasError = true;
+    } else if (data.password !== data.confirm_password) {
+        document.getElementById("confirmError").innerText = "Passwords do not match"; hasError = true;
+    }
+
+    if (!data.phone) {
+        document.getElementById("phoneError").innerText = "Phone is required"; hasError = true;
+    } else if (!/^\d{10,15}$/.test(data.phone)) {
+        document.getElementById("phoneError").innerText = "Phone must be 10-15 digits"; hasError = true;
+    }
+
+    if (!data.dob) {
+        document.getElementById("dobError").innerText = "Date of birth is required"; hasError = true;
+    } else if (new Date(data.dob) >= new Date()) {
+        document.getElementById("dobError").innerText = "DOB must be in the past"; hasError = true;
+    }
+
+    if (!data.gender) {
+        document.getElementById("genderError").innerText = "Please select gender"; hasError = true;
+    }
+
+    if (hasError) return;
+
+    try {
+        const res    = await fetch("http://127.0.0.1:8000/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data)
+        });
+        const result = await res.json();
+
+        if (res.ok) {
+            document.getElementById("registerMsg").innerText = "✅ Registered successfully! Redirecting...";
+            setTimeout(() => { window.location.href = "/login"; }, 1500);
+        } else {
+            document.getElementById("registerError").innerText = result.detail || "Registration failed";
+        }
+    } catch (e) {
+        document.getElementById("registerError").innerText = "Server Error";
+    }
+}
+
+</script>
+
+</body>
+</html>

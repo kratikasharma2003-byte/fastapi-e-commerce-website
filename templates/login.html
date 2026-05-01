@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Login</title>
+<style>
+body {
+    font-family: Arial;
+    background: linear-gradient(120deg, #4facfe, #00f2fe);
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.container {
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+    width: 350px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+h2 { text-align: center; margin-bottom: 20px; color: #333; }
+label { font-size: 13px; color: #555; }
+input {
+    width: 100%;
+    padding: 10px;
+    margin: 8px 0 14px 0;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+button {
+    width: 100%;
+    padding: 10px;
+    background: #4facfe;
+    border: none;
+    color: white;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+button:hover { background: #0077ff; }
+button:disabled { background: gray; cursor: not-allowed; }
+
+.message { text-align: center; margin-top: 10px; color: green; }
+.error   { text-align: center; margin-top: 10px; color: red; }
+p { text-align: center; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Login</h2>
+
+    <label>Email</label>
+    <input id="l_email" type="email" placeholder="Enter your email" required>
+
+    <label>Password</label>
+    <div style="position: relative;">
+        <input id="l_password" type="password" placeholder="Enter your password" required>
+        <span onclick="togglePassword()" 
+              style="position: absolute; right: 2px; top: 50%; transform: translateY(-50%); cursor: pointer;">
+            👁️
+        </span>
+    </div>
+
+    <button id="loginBtn" onclick="login()">Login</button>
+
+    <div class="message" id="loginMsg"></div>
+    <div class="error" id="loginError"></div>
+
+    <p><a href="/register">Don't have an account? Register</a></p>
+    <p><a href="/forgot-password">Forgot Password?</a></p>
+</div>
+
+<script>
+function togglePassword() {
+    const passwordInput = document.getElementById("l_password");
+    passwordInput.type = passwordInput.type === "password" ? "text" : "password";
+}
+
+async function login() {
+    const email    = document.getElementById("l_email").value.trim();
+    const password = document.getElementById("l_password").value;
+    const msg      = document.getElementById("loginMsg");
+    const err      = document.getElementById("loginError");
+    const btn      = document.getElementById("loginBtn");
+
+    msg.innerText = "";
+    err.innerText = "";
+
+    if (!email || !password) {
+        err.innerText = "All fields are required";
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerText = "Logging in...";
+
+    try {
+        const res = await fetch("http://127.0.0.1:8000/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password })
+        });
+
+        let result;
+        try {
+            result = await res.json();
+        } catch {
+            result = { detail: "Invalid server response" };
+        }
+
+        if (res.ok) {
+            localStorage.setItem("email", email);
+
+            // ── Role check: fetch user profile to detect admin ──
+            let isAdmin = false;
+            try {
+                const profileRes = await fetch(`http://127.0.0.1:8000/profile?email=${encodeURIComponent(email)}`);
+                if (profileRes.ok) {
+                    const profile = await profileRes.json();
+                    // Support is_admin boolean OR role === "admin"
+                    isAdmin = profile.is_admin === true || profile.role === "admin";
+                    localStorage.setItem("is_admin", isAdmin ? "true" : "false");
+                    if (profile.username) localStorage.setItem("username", profile.username);
+                }
+            } catch { /* if profile fetch fails, treat as normal user */ }
+
+            msg.innerText = "✅ Login Successful!";
+            setTimeout(() => {
+                window.location.href = isAdmin ? "/admin" : "/shop";
+            }, 1000);
+        } else {
+            // ✅ Handle FastAPI style errors
+            if (Array.isArray(result)) {
+                // Top-level array of validation errors
+                err.innerText = result.map(e => e.msg).join("\n");
+            } else if (Array.isArray(result.detail)) {
+                // Array inside detail
+                err.innerText = result.detail.map(e => e.msg).join("\n");
+            } else if (typeof result.detail === "object") {
+                err.innerText = result.detail.msg || JSON.stringify(result.detail);
+            } else {
+                err.innerText = result.detail || "Invalid credentials";
+            }
+        }
+
+    } catch(e) {
+        err.innerText = "❌ Server not running or CORS issue";
+        console.error(e);
+    }
+
+    btn.disabled = false;
+    btn.innerText = "Login";
+}
+</script>
+
+</body>
+</html>
