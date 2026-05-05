@@ -64,6 +64,7 @@ class Order(Base):
     total      = Column(Float, nullable=False)
     status     = Column(String, default="Pending")
     transaction_id = Column(String, unique=True, nullable=True)
+    stripe_session_id = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 

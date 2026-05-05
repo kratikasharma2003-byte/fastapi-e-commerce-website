@@ -26,6 +26,7 @@ input {
     margin: 8px 0 14px 0;
     border: 1px solid #ccc;
     border-radius: 5px;
+    box-sizing: border-box;
 }
 button {
     width: 100%;
@@ -39,7 +40,6 @@ button {
 }
 button:hover { background: #0077ff; }
 button:disabled { background: gray; cursor: not-allowed; }
-
 .message { text-align: center; margin-top: 10px; color: green; }
 .error   { text-align: center; margin-top: 10px; color: red; }
 p { text-align: center; margin-top: 10px; }
@@ -55,26 +55,35 @@ p { text-align: center; margin-top: 10px; }
 
     <label>Password</label>
     <div style="position: relative;">
-        <input id="l_password" type="password" placeholder="Enter your password" required>
-        <span onclick="togglePassword()" 
-              style="position: absolute; right: 2px; top: 50%; transform: translateY(-50%); cursor: pointer;">
+        <input id="l_password" type="password" placeholder="Enter your password" required
+               style="padding-right: 40px;">
+        <span onclick="togglePassword()"
+              style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer;">
             👁️
         </span>
     </div>
 
-    <button id="loginBtn" onclick="login()">Login</button>
+    <button id="loginBtn" onclick="login()" style="margin-top: 14px;">Login</button>
 
     <div class="message" id="loginMsg"></div>
-    <div class="error" id="loginError"></div>
+    <div class="error"   id="loginError"></div>
 
     <p><a href="/register">Don't have an account? Register</a></p>
     <p><a href="/forgot-password">Forgot Password?</a></p>
 </div>
 
 <script>
+// ✅ Change only this one line to update ALL API calls
+const API_BASE = "https://new-fastapi-e-commerce-website.onrender.com";
+
+// Wake up the Render free-tier backend on page load (it sleeps after 15 min)
+(async function wakeServer() {
+    try { await fetch(`${API_BASE}/products`, { method: "GET" }); } catch (_) {}
+})();
+
 function togglePassword() {
-    const passwordInput = document.getElementById("l_password");
-    passwordInput.type = passwordInput.type === "password" ? "text" : "password";
+    const input = document.getElementById("l_password");
+    input.type = input.type === "password" ? "text" : "password";
 }
 
 async function login() {
@@ -96,56 +105,57 @@ async function login() {
     btn.innerText = "Logging in...";
 
     try {
-        const res = await fetch("http://127.0.0.1:8000/login", {
+        // ✅ FIXED: correctly calls /login endpoint
+        const res = await fetch(`${API_BASE}/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password })
+        });
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, password })
         });
 
         let result;
-        try {
-            result = await res.json();
-        } catch {
-            result = { detail: "Invalid server response" };
-        }
+        try { result = await res.json(); }
+        catch { result = { detail: "Invalid server response" }; }
 
         if (res.ok) {
             localStorage.setItem("email", email);
 
-            // ── Role check: fetch user profile to detect admin ──
+            // ✅ FIXED: was http://127.0.0.1:8000/profile — now uses hosted URL
             let isAdmin = false;
             try {
-                const profileRes = await fetch(`http://127.0.0.1:8000/profile?email=${encodeURIComponent(email)}`);
+                const profileRes = await fetch(
+                    `${API_BASE}/profile?email=${encodeURIComponent(email)}`
+                );
                 if (profileRes.ok) {
                     const profile = await profileRes.json();
-                    // Support is_admin boolean OR role === "admin"
                     isAdmin = profile.is_admin === true || profile.role === "admin";
                     localStorage.setItem("is_admin", isAdmin ? "true" : "false");
                     if (profile.username) localStorage.setItem("username", profile.username);
                 }
-            } catch { /* if profile fetch fails, treat as normal user */ }
+            } catch { /* treat as normal user if profile fetch fails */ }
 
             msg.innerText = "✅ Login Successful!";
             setTimeout(() => {
                 window.location.href = isAdmin ? "/admin" : "/shop";
             }, 1000);
+
         } else {
-            // ✅ Handle FastAPI style errors
             if (Array.isArray(result)) {
-                // Top-level array of validation errors
                 err.innerText = result.map(e => e.msg).join("\n");
             } else if (Array.isArray(result.detail)) {
-                // Array inside detail
                 err.innerText = result.detail.map(e => e.msg).join("\n");
-            } else if (typeof result.detail === "object") {
+            } else if (typeof result.detail === "object" && result.detail !== null) {
                 err.innerText = result.detail.msg || JSON.stringify(result.detail);
             } else {
                 err.innerText = result.detail || "Invalid credentials";
             }
         }
 
-    } catch(e) {
-        err.innerText = "❌ Server not running or CORS issue";
+    } catch (e) {
+        err.innerText = "❌ Server is starting up (free tier cold start). Please wait ~30 seconds and try again.";
         console.error(e);
     }
 

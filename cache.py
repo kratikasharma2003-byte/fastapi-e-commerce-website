@@ -1,17 +1,3 @@
-"""
-cache.py  ─  Redis Caching Layer for ShopFast
-=============================================
-Local Redis (no Docker).  Start Redis with:
-    sudo apt install redis-server -y && sudo systemctl start redis
-
-Environment variables (.env):
-    REDIS_URL=redis://localhost:6379/0   ← default, no change needed for local
-    CACHE_DEFAULT_TTL=300                ← seconds (default 5 min)
-
-Install:
-    pip install "redis[hiredis]>=5.0.0"
-"""
-
 import json
 import os
 from typing import Any, Optional, Callable

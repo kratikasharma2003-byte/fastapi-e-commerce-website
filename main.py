@@ -24,6 +24,8 @@ from sqlalchemy import or_, desc, asc
 logger.add("logs/app.log", rotation="1 MB")
 from dotenv import load_dotenv
 load_dotenv()
+DATABASE_URL = os.getenv("DATABASE_URL")
+
 
 import models, schemas, auth
 from database import engine, get_db
@@ -55,10 +57,16 @@ from cache import (
 async def lifespan(app: FastAPI):
     # ── startup ──
     models.Base.metadata.create_all(bind=engine)
-    redis_startup()          # verify Redis is up; logs warning if not
+    try:
+        redis_startup()
+    except Exception:
+        pass  # Redis is optional
     yield
     # ── shutdown ──
-    redis_shutdown()
+    try:
+        redis_shutdown()
+    except Exception:
+        pass
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -71,7 +79,8 @@ templates = Jinja2Templates(directory="templates")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://new-fastapi-e-commerce-website.onrender.com",
+        "*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -142,10 +151,10 @@ class UserCreate(BaseModel):
     def validate_dob(cls, v):
         try:
             dob = datetime.strptime(v, "%Y-%m-%d").date()
-            if dob >= datetime.today().date():
-                raise ValueError("DOB must be in the past")
         except ValueError:
             raise ValueError("Invalid DOB format (use YYYY-MM-DD)")
+        if dob >= datetime.today().date():
+            raise ValueError("DOB must be in the past")
         return v
 
     @field_validator("gender")
@@ -311,7 +320,10 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(500, f"Database error: {str(e)}")
-    invalidate_admin_stats()
+    try:
+        invalidate_admin_stats()
+    except Exception:
+        pass  # Redis optional
     return {"message": "User registered successfully"}
 
 
@@ -387,7 +399,10 @@ def update_profile(data: UpdateProfile, db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(500, str(e))
 
-    invalidate_user_profile(data.email)
+    try:
+        invalidate_user_profile(data.email)
+    except Exception:
+        pass  # Redis optional
     return {
         "message":        "Profile updated successfully",
         "updated_fields": updated,
@@ -569,8 +584,14 @@ def create_product(
     db.add(product)
     db.commit()
     db.refresh(product)
-    invalidate_product(product.id)
-    invalidate_admin_stats()
+    try:
+        invalidate_product(product.id)
+    except Exception:
+        pass  # Redis optional
+    try:
+        invalidate_admin_stats()
+    except Exception:
+        pass  # Redis optional
     return product
 
 
@@ -599,7 +620,10 @@ def update_product(
     if stock       is not None: product.stock       = stock
     db.commit()
     db.refresh(product)
-    invalidate_product(product_id)
+    try:
+        invalidate_product(product_id)
+    except Exception:
+        pass  # Redis optional
     return product
 
 
@@ -613,8 +637,14 @@ def delete_product(product_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "Product not found or already deleted")
     _soft_delete(product)
     db.commit()
-    invalidate_product(product_id)
-    invalidate_admin_stats()
+    try:
+        invalidate_product(product_id)
+    except Exception:
+        pass  # Redis optional
+    try:
+        invalidate_admin_stats()
+    except Exception:
+        pass  # Redis optional
     return {"message": "Product soft-deleted successfully", "product_id": product_id}
 
 
@@ -629,7 +659,10 @@ def restore_product(product_id: int, db: Session = Depends(get_db)):
     _restore(product)
     db.commit()
     db.refresh(product)
-    invalidate_product(product_id)
+    try:
+        invalidate_product(product_id)
+    except Exception:
+        pass  # Redis optional
     return {"message": "Product restored successfully", "product_id": product_id}
 
 
@@ -685,7 +718,10 @@ def add_to_cart(data: CartAdd, db: Session = Depends(get_db)):
             quantity=data.quantity,
         ))
     db.commit()
-    invalidate_cart(data.user_email)
+    try:
+        invalidate_cart(data.user_email)
+    except Exception:
+        pass  # Redis optional
     return {"message": "Added to cart"}
 
 
@@ -731,7 +767,10 @@ def update_cart(cart_item_id: int, quantity: int = Query(...), db: Session = Dep
             raise HTTPException(400, f"Only {item.product.stock} item(s) in stock")
         item.quantity = quantity
     db.commit()
-    invalidate_cart(email)
+    try:
+        invalidate_cart(email)
+    except Exception:
+        pass  # Redis optional
     return {"message": "Cart updated"}
 
 
@@ -743,7 +782,10 @@ def remove_from_cart(cart_item_id: int, db: Session = Depends(get_db)):
     email = item.user_email
     db.delete(item)
     db.commit()
-    invalidate_cart(email)
+    try:
+        invalidate_cart(email)
+    except Exception:
+        pass  # Redis optional
     return {"message": "Item removed from cart"}
 
 
@@ -751,7 +793,10 @@ def remove_from_cart(cart_item_id: int, db: Session = Depends(get_db)):
 def clear_cart(email: str = Query(...), db: Session = Depends(get_db)):
     db.query(models.CartItem).filter_by(user_email=email).delete()
     db.commit()
-    invalidate_cart(email)
+    try:
+        invalidate_cart(email)
+    except Exception:
+        pass  # Redis optional
     return {"message": "Cart cleared"}
 
 
@@ -821,9 +866,18 @@ def checkout(data: CheckoutRequest, db: Session = Depends(get_db)):
     with db_transaction(db):
         order, items_for_email = _build_order_from_cart(data.user_email, db)
 
-    invalidate_cart(data.user_email)
-    invalidate_user_orders(data.user_email)
-    invalidate_admin_stats()
+    try:
+        invalidate_cart(data.user_email)
+    except Exception:
+        pass  # Redis optional
+    try:
+        invalidate_user_orders(data.user_email)
+    except Exception:
+        pass  # Redis optional
+    try:
+        invalidate_admin_stats()
+    except Exception:
+        pass  # Redis optional
 
     try:
         send_order_confirmation(data.user_email, order.id, order.total, items_for_email)
@@ -952,7 +1006,10 @@ def update_order_status_admin(order_id: int, status: str, db: Session = Depends(
         raise HTTPException(404, "Order not found")
     order.status = status
     db.commit()
-    invalidate_user_orders(order.user_email, order_id=order_id)
+    try:
+        invalidate_user_orders(order.user_email, order_id=order_id)
+    except Exception:
+        pass  # Redis optional
     return {"message": "Status updated"}
 
 
@@ -1033,7 +1090,10 @@ def admin_update_user(user_id: int, data: AdminUpdateUser, db: Session = Depends
     except SQLAlchemyError as e:
         db.rollback(); raise HTTPException(500, str(e))
 
-    invalidate_user_profile(user.email)
+    try:
+        invalidate_user_profile(user.email)
+    except Exception:
+        pass  # Redis optional
 
     return {
         "message": "User updated successfully",
@@ -1056,9 +1116,18 @@ def admin_delete_user(user_id: int, db: Session = Depends(get_db)):
     email = user.email
     _soft_delete(user)
     db.commit()
-    invalidate_user_profile(email)
-    invalidate_cart(email)
-    invalidate_admin_stats()
+    try:
+        invalidate_user_profile(email)
+    except Exception:
+        pass  # Redis optional
+    try:
+        invalidate_cart(email)
+    except Exception:
+        pass  # Redis optional
+    try:
+        invalidate_admin_stats()
+    except Exception:
+        pass  # Redis optional
     return {"message": f"User {email} soft-deleted successfully"}
 
 
@@ -1073,7 +1142,10 @@ def admin_restore_user(user_id: int, db: Session = Depends(get_db)):
     _restore(user)
     db.commit()
     db.refresh(user)
-    invalidate_admin_stats()
+    try:
+        invalidate_admin_stats()
+    except Exception:
+        pass  # Redis optional
     return {
         "message": "User restored successfully",
         "user": {
@@ -1136,8 +1208,14 @@ def stripe_create_checkout(
     db.commit()
     db.refresh(order)
 
-    invalidate_cart(data.user_email)
-    invalidate_user_orders(data.user_email)
+    try:
+        invalidate_cart(data.user_email)
+    except Exception:
+        pass  # Redis optional
+    try:
+        invalidate_user_orders(data.user_email)
+    except Exception:
+        pass  # Redis optional
 
     request.session["stripe_email"]    = data.user_email
     request.session["stripe_order_id"] = order.id
@@ -1262,8 +1340,14 @@ def stripe_success(
         print(f"[Stripe/success] ❌ DB commit failed: {e}")
         return RedirectResponse(url="/stripe/cancel-page?reason=db_error", status_code=303)
 
-    invalidate_user_orders(user_email, order_id=order.id)
-    invalidate_admin_stats()
+    try:
+        invalidate_user_orders(user_email, order_id=order.id)
+    except Exception:
+        pass  # Redis optional
+    try:
+        invalidate_admin_stats()
+    except Exception:
+        pass  # Redis optional
 
     request.session.pop("stripe_email",    None)
     request.session.pop("stripe_order_id", None)
@@ -1359,8 +1443,14 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         db.add(payment)
         db.commit()
 
-        invalidate_user_orders(order.user_email, order_id=order.id)
-        invalidate_admin_stats()
+        try:
+            invalidate_user_orders(order.user_email, order_id=order.id)
+        except Exception:
+            pass  # Redis optional
+        try:
+            invalidate_admin_stats()
+        except Exception:
+            pass  # Redis optional
 
         print(f"[Stripe Webhook] ✅ Payment saved | Order #{order.id} | PI={pi_id}")
 
@@ -1412,8 +1502,14 @@ def payment_complete(data: PaymentCompleteRequest, db: Session = Depends(get_db)
         db.rollback()
         raise HTTPException(500, f"Database error: {str(e)}")
 
-    invalidate_user_orders(data.user_email, order_id=data.order_id)
-    invalidate_admin_stats()
+    try:
+        invalidate_user_orders(data.user_email, order_id=data.order_id)
+    except Exception:
+        pass  # Redis optional
+    try:
+        invalidate_admin_stats()
+    except Exception:
+        pass  # Redis optional
 
     try:
         items_for_email = [

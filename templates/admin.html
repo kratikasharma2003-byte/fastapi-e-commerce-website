@@ -635,7 +635,10 @@ function adminLogout() {
 checkAdminAuth();
 
 // ── State ─────────────────────────────────────────────────────────
-const BASE = "http://127.0.0.1:8000";
+const BASE = "https://new-fastapi-e-commerce-website.onrender.com";
+
+// Wake up the Render free-tier server on page load
+(async function() { try { await fetch(BASE + "/products"); } catch(_) {} })();
 let allProducts  = [];
 let allOrders    = [];
 let allUsers     = [];
@@ -732,7 +735,7 @@ async function loadProducts(silent = false) {
     } catch {
         if (!silent) {
             document.getElementById("table-wrap").innerHTML =
-                `<div class="no-data">⚠️ Failed to load products. Is the API running?</div>`;
+                `<div class="no-data">⚠️ Server is starting up (free tier). Click Refresh in ~30 seconds.</div>`;
         }
     } finally {
         showRefreshing(false);
@@ -813,7 +816,7 @@ async function addProduct() {
         document.getElementById("f-stock").value    = "0";
         await loadProducts(false);
     } catch {
-        showFormMsg("❌ Server error. Is the API running?", "error");
+        showFormMsg("❌ Server starting up (free tier). Wait ~30s then try again.", "error");
     } finally {
         btn.disabled = false; btn.textContent = "Add Product";
     }

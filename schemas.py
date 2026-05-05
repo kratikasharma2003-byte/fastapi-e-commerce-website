@@ -35,8 +35,8 @@ class ProductResponse(BaseModel):
     category: str
     stock: int
 
-class Config:
-        orm_mode = True
+    class Config:
+        from_attributes = True
 
 
 class EmailRequest(BaseModel):
