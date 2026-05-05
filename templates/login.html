@@ -26,6 +26,7 @@ input {
     margin: 8px 0 14px 0;
     border: 1px solid #ccc;
     border-radius: 5px;
+    box-sizing: border-box;
 }
 button {
     width: 100%;
@@ -55,9 +56,9 @@ p { text-align: center; margin-top: 10px; }
 
     <label>Password</label>
     <div style="position: relative;">
-        <input id="l_password" type="password" placeholder="Enter your password" required>
+        <input id="l_password" type="password" placeholder="Enter your password" required style="padding-right: 36px;">
         <span onclick="togglePassword()" 
-              style="position: absolute; right: 2px; top: 50%; transform: translateY(-50%); cursor: pointer;">
+              style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer;">
             👁️
         </span>
     </div>
@@ -72,6 +73,8 @@ p { text-align: center; margin-top: 10px; }
 </div>
 
 <script>
+const BASE_URL = "https://new-fastapi-e-commerce-website.onrender.com";
+
 function togglePassword() {
     const passwordInput = document.getElementById("l_password");
     passwordInput.type = passwordInput.type === "password" ? "text" : "password";
@@ -96,7 +99,8 @@ async function login() {
     btn.innerText = "Logging in...";
 
     try {
-        const res = await (fetch("https://new-fastapi-e-commerce-website.onrender.com/login", ...), {
+        // ✅ FIX 1: Corrected fetch syntax (removed stray comma and wrapping)
+        const res = await fetch(`${BASE_URL}/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, password })
@@ -115,7 +119,8 @@ async function login() {
             // ── Role check: fetch user profile to detect admin ──
             let isAdmin = false;
             try {
-                const profileRes = await fetch("https://new-fastapi-e-commerce-website.onrender.com/profile?email=...")});
+                // ✅ FIX 2: Use actual email variable, removed stray closing brace
+                const profileRes = await fetch(`${BASE_URL}/profile?email=${encodeURIComponent(email)}`);
                 if (profileRes.ok) {
                     const profile = await profileRes.json();
                     // Support is_admin boolean OR role === "admin"
@@ -132,10 +137,8 @@ async function login() {
         } else {
             // ✅ Handle FastAPI style errors
             if (Array.isArray(result)) {
-                // Top-level array of validation errors
                 err.innerText = result.map(e => e.msg).join("\n");
             } else if (Array.isArray(result.detail)) {
-                // Array inside detail
                 err.innerText = result.detail.map(e => e.msg).join("\n");
             } else if (typeof result.detail === "object") {
                 err.innerText = result.detail.msg || JSON.stringify(result.detail);
