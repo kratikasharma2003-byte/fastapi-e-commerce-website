@@ -1244,10 +1244,12 @@
 <div id="toast"></div>
 
 <script>
-const BASE  = "https://new-fastapi-e-commerce-website.onrender.com";
+const BASE = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+    ? "http://localhost:8000"
+    : "https://new-fastapi-e-commerce-website.onrender.com";
 // Use stored email or a guest fallback so the page never redirects when opened directly
-const email = localStorage.getItem("email") || "guest@shopfast.com";
-if (!localStorage.getItem("email")) localStorage.setItem("email", email);
+const email = localStorage.getItem("email");
+if (!email) { window.location.href = "/login"; }
 
 let allProducts       = [];
 let cartData          = { items: [], total: 0 };
@@ -1256,6 +1258,7 @@ let currentOrderTotal = null;
 let selectedPayMethod = "card";
 let pendingAddProductId = null;
 let pendingAddProduct   = null;
+let isDemoMode          = false; // true = showing demo products, never POST these IDs to real backend
 
 // ── Reviews State ─────────────────────────────────────────────────
 let reviewsDB = {}; // productId → [{name, rating, text, date}]
@@ -1306,6 +1309,7 @@ async function loadProducts() {
             useDemoProducts();
             return;
         }
+        isDemoMode = false;
         allProducts = data;
         filteredProducts = allProducts;
         populateCategories();
@@ -1317,6 +1321,7 @@ async function loadProducts() {
 }
 
 function useDemoProducts() {
+    isDemoMode = true;
     allProducts = DEMO_PRODUCTS;
     filteredProducts = allProducts;
     populateCategories();
@@ -1779,11 +1784,16 @@ function renderStarsHTMLRaw(productId) {
 // ── Cart ──────────────────────────────────────────────────────────
 async function loadCart() {
     try {
-        const res = await fetch(`${BASE}/cart?email=${email}`);
-        cartData  = await res.json();
+        const res = await fetch(`${BASE}/cart?email=${encodeURIComponent(email)}`);
+        if (!res.ok) { console.warn("[loadCart] status:", res.status); return; }
+        const json = await res.json();
+        cartData = {
+            items: Array.isArray(json.items) ? json.items : [],
+            total: json.total || 0
+        };
         updateCartBadge();
         renderCartSidebar();
-    } catch {}
+    } catch (err) { console.error("[loadCart]", err); }
 }
 
 function updateCartBadge() {
@@ -1846,20 +1856,73 @@ function closeAddConfirm() {
 
 async function confirmAddToCart() {
     if (!pendingAddProductId) return;
+    // Capture productId first — closeAddConfirm() resets it to null
     const productId = pendingAddProductId;
-    closeAddConfirm();
+
+    const okBtn = document.getElementById("confirm-add-ok-btn");
+    if (okBtn) { okBtn.disabled = true; okBtn.textContent = "Adding…"; }
+
+    // ── DEMO MODE: products from demo list don't exist in the real DB ──
+    // Handle cart locally without calling the backend at all.
+    if (isDemoMode) {
+        const product = allProducts.find(p => p.id === productId);
+        if (!product) {
+            toast("Product not found", "error");
+            if (okBtn) { okBtn.disabled = false; okBtn.textContent = "OK, Add to Cart"; }
+            return;
+        }
+        const existing = cartData.items.find(i => i.product_id === productId);
+        if (existing) {
+            existing.quantity += 1;
+            existing.subtotal = +(existing.quantity * existing.price).toFixed(2);
+        } else {
+            cartData.items.push({
+                cart_item_id: productId,
+                product_id:   productId,
+                name:         product.name,
+                price:        product.price,
+                quantity:     1,
+                subtotal:     product.price,
+                image_url:    product.image_url || "",
+                stock:        product.stock,
+            });
+        }
+        cartData.total = +cartData.items.reduce((s, i) => s + i.subtotal, 0).toFixed(2);
+        updateCartBadge();
+        renderCartSidebar();
+        closeAddConfirm();
+        toast("Added to cart ✓", "success");
+        showStepper(productId);
+        if (okBtn) { okBtn.disabled = false; okBtn.textContent = "OK, Add to Cart"; }
+        return;
+    }
+
+    // ── REAL MODE: call backend ─────────────────────────────────────
     try {
         const res = await fetch(`${BASE}/cart/add`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ user_email: email, product_id: productId, quantity: 1 }),
         });
-        const data = await res.json();
-        if (!res.ok) { toast(data.detail || "Failed to add", "error"); return; }
+        let data = {};
+        try { data = await res.json(); } catch (_) {}
+
+        if (!res.ok) {
+            const detail = data.detail || `Error ${res.status}`;
+            console.error("[cart/add] failed:", res.status, detail);
+            toast(detail, "error");
+            if (okBtn) { okBtn.disabled = false; okBtn.textContent = "OK, Add to Cart"; }
+            return;
+        }
+        closeAddConfirm();
         toast("Added to cart ✓", "success");
         await loadCart();
         showStepper(productId);
-    } catch { toast("Server error", "error"); }
+    } catch (err) {
+        console.error("[cart/add] network error:", err);
+        toast("Network error — please try again", "error");
+        if (okBtn) { okBtn.disabled = false; okBtn.textContent = "OK, Add to Cart"; }
+    }
 }
 
 function showStepper(productId) {
@@ -1885,6 +1948,23 @@ async function stepCart(productId, delta) {
     const cartItem = cartData.items.find(i => i.product_id === productId);
     if (!cartItem) { if (delta > 0) openAddConfirm(productId); return; }
     const newQty = cartItem.quantity + delta;
+
+    if (isDemoMode) {
+        if (newQty <= 0) {
+            cartData.items = cartData.items.filter(i => i.product_id !== productId);
+            cartData.total = +cartData.items.reduce((s, i) => s + i.subtotal, 0).toFixed(2);
+            updateCartBadge(); renderCartSidebar(); showAddBtn(productId);
+        } else {
+            cartItem.quantity = newQty;
+            cartItem.subtotal = +(newQty * cartItem.price).toFixed(2);
+            cartData.total    = +cartData.items.reduce((s, i) => s + i.subtotal, 0).toFixed(2);
+            updateCartBadge(); renderCartSidebar();
+            const countEl = document.getElementById(`count-${productId}`);
+            if (countEl) countEl.textContent = newQty;
+        }
+        return;
+    }
+
     if (newQty <= 0) { await removeItem(cartItem.cart_item_id); showAddBtn(productId); return; }
     await changeQty(cartItem.cart_item_id, newQty);
     const countEl = document.getElementById(`count-${productId}`);

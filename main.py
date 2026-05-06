@@ -285,6 +285,19 @@ def cache_health():
     }
 
 
+@app.delete("/cache/clear-products")
+def clear_products_cache():
+    """Force-clear the products cache so stale/empty results are evicted."""
+    try:
+        products_key = Keys.products_all()
+        cache.delete(products_key)
+        logger.info("[cache/clear-products] products_all cache cleared")
+        return {"message": "Products cache cleared — next GET /products will reload from DB"}
+    except Exception as e:
+        logger.error(f"[cache/clear-products] Failed: {e}")
+        raise HTTPException(500, f"Cache clear failed: {e}")
+
+
 # ══════════════════════════════════════════════════════════════════
 #  AUTH ROUTES
 # ══════════════════════════════════════════════════════════════════
@@ -298,7 +311,7 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(400, pwd_error)
     existing = db.query(models.User).filter(
         (models.User.username == user.username) | (models.User.email == user.email),
-        models.User.is_deleted == False,  # noqa: E712
+        or_(models.User.is_deleted == False, models.User.is_deleted == None),  # noqa: E712, E711
     ).first()
     if existing:
         raise HTTPException(400, "Username or email already registered")
@@ -330,7 +343,7 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
 async def login(request: Request, data: schemas.UserLogin, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(
         models.User.email == data.email,
-        models.User.is_deleted == False,  # noqa: E712
+        or_(models.User.is_deleted == False, models.User.is_deleted == None),  # noqa: E712, E711
     ).first()
     if not user:
         raise HTTPException(400, "No account found")
@@ -352,7 +365,7 @@ async def get_profile(email: str = Query(...), db: Session = Depends(get_db)):
 
     user = db.query(models.User).filter(
         models.User.email == email,
-        models.User.is_deleted == False,  # noqa: E712
+        or_(models.User.is_deleted == False, models.User.is_deleted == None),  # noqa: E712, E711
     ).first()
     if not user:
         raise HTTPException(404, "User not found")
@@ -372,7 +385,7 @@ async def get_profile(email: str = Query(...), db: Session = Depends(get_db)):
 def update_profile(data: UpdateProfile, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(
         models.User.email == data.email,
-        models.User.is_deleted == False,  # noqa: E712
+        or_(models.User.is_deleted == False, models.User.is_deleted == None),  # noqa: E712, E711
     ).first()
     if not user:
         raise HTTPException(404, "User not found")
@@ -416,7 +429,7 @@ def update_profile(data: UpdateProfile, db: Session = Depends(get_db)):
 async def forgot_password(data: schemas.ForgotPassword, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(
         models.User.email == data.email,
-        models.User.is_deleted == False,  # noqa: E712
+        or_(models.User.is_deleted == False, models.User.is_deleted == None),  # noqa: E712, E711
     ).first()
     if not user:
         raise HTTPException(404, "Email not registered")
@@ -445,7 +458,7 @@ async def reset_password(data: schemas.ResetPassword, db: Session = Depends(get_
         raise HTTPException(400, pwd_error)
     user = db.query(models.User).filter(
         models.User.email == data.email,
-        models.User.is_deleted == False,  # noqa: E712
+        or_(models.User.is_deleted == False, models.User.is_deleted == None),  # noqa: E712, E711
     ).first()
     if not user:
         raise HTTPException(404, "User not found")
@@ -471,7 +484,7 @@ def search_products(
     cache_key = Keys.product_search(q, category, min_price, max_price, sort)
 
     def _load():
-        query = db.query(models.Product).filter(models.Product.is_deleted == False)  # noqa: E712
+        query = db.query(models.Product).filter(or_(models.Product.is_deleted == False, models.Product.is_deleted == None))  # noqa: E712, E711
         if q:
             query = query.filter(
                 or_(
@@ -512,27 +525,37 @@ def search_products(
 def get_products(db: Session = Depends(get_db)):
     cache_key = Keys.products_all()
 
-    def _load():
-        products = (
-            db.query(models.Product)
-            .filter(models.Product.is_deleted == False)  # noqa: E712
-            .order_by(models.Product.id.desc())
-            .all()
-        )
-        return [
-            {
-                "id":          p.id,
-                "name":        p.name,
-                "price":       p.price,
-                "description": p.description,
-                "image_url":   p.image_url,
-                "category":    p.category,
-                "stock":       p.stock,
-            }
-            for p in products
-        ]
+    # Only use cache if it has a non-empty list (stale empty cache causes demo-mode fallback)
+    cached = cache.get(cache_key)
+    if cached and isinstance(cached, list) and len(cached) > 0:
+        return cached
 
-    return cache.get_or_set(cache_key, _load, TTL["products_all"])
+    products = (
+        db.query(models.Product)
+        .filter(or_(models.Product.is_deleted == False, models.Product.is_deleted == None))  # noqa: E712, E711
+        .order_by(models.Product.id.desc())
+        .all()
+    )
+    result = [
+        {
+            "id":          p.id,
+            "name":        p.name,
+            "price":       p.price,
+            "description": p.description,
+            "image_url":   p.image_url,
+            "category":    p.category,
+            "stock":       p.stock,
+        }
+        for p in products
+    ]
+
+    # Never cache an empty list — that would poison the cache
+    if result:
+        cache.set(cache_key, result, TTL["products_all"])
+    else:
+        logger.warning("[GET /products] DB returned 0 products — skipping cache write")
+
+    return result
 
 
 @app.get("/products/{product_id}", response_model=schemas.ProductResponse)
@@ -544,7 +567,7 @@ def get_product(product_id: int, db: Session = Depends(get_db)):
 
     product = db.query(models.Product).filter(
         models.Product.id == product_id,
-        models.Product.is_deleted == False,  # noqa: E712
+        or_(models.Product.is_deleted == False, models.Product.is_deleted == None),  # noqa: E712, E711
     ).first()
     if not product:
         raise HTTPException(404, "Product not found")
@@ -607,7 +630,7 @@ def update_product(
 ):
     product = db.query(models.Product).filter(
         models.Product.id == product_id,
-        models.Product.is_deleted == False,  # noqa: E712
+        or_(models.Product.is_deleted == False, models.Product.is_deleted == None),  # noqa: E712, E711
     ).first()
     if not product:
         raise HTTPException(404, "Product not found")
@@ -630,7 +653,7 @@ def update_product(
 def delete_product(product_id: int, db: Session = Depends(get_db)):
     product = db.query(models.Product).filter(
         models.Product.id == product_id,
-        models.Product.is_deleted == False,  # noqa: E712
+        or_(models.Product.is_deleted == False, models.Product.is_deleted == None),  # noqa: E712, E711
     ).first()
     if not product:
         raise HTTPException(404, "Product not found or already deleted")
@@ -688,18 +711,21 @@ def list_deleted_products(db: Session = Depends(get_db)):
 
 @app.post("/cart/add")
 def add_to_cart(data: CartAdd, db: Session = Depends(get_db)):
+    # Treat NULL is_deleted as not-deleted for backwards compatibility
     user = db.query(models.User).filter(
         models.User.email == data.user_email,
-        models.User.is_deleted == False,  # noqa: E712
+        or_(models.User.is_deleted == False, models.User.is_deleted == None),  # noqa: E712, E711
     ).first()
     if not user:
+        logger.warning(f"[cart/add] User not found: {data.user_email}")
         raise HTTPException(404, "User not found")
     product = db.query(models.Product).filter(
         models.Product.id == data.product_id,
-        models.Product.is_deleted == False,  # noqa: E712
+        or_(models.Product.is_deleted == False, models.Product.is_deleted == None),  # noqa: E712, E711
     ).first()
     if not product:
-        raise HTTPException(404, "Product not found")
+        logger.warning(f"[cart/add] Product not found: id={data.product_id}")
+        raise HTTPException(404, f"Product not found (id={data.product_id})")
     if product.stock < data.quantity:
         raise HTTPException(400, f"Only {product.stock} item(s) left in stock")
     existing = db.query(models.CartItem).filter_by(
@@ -1066,7 +1092,7 @@ def get_all_users(db: Session = Depends(get_db)):
 def admin_update_user(user_id: int, data: AdminUpdateUser, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(
         models.User.id == user_id,
-        models.User.is_deleted == False,  # noqa: E712
+        or_(models.User.is_deleted == False, models.User.is_deleted == None),  # noqa: E712, E711
     ).first()
     if not user:
         raise HTTPException(404, "User not found")
@@ -1108,7 +1134,7 @@ def admin_update_user(user_id: int, data: AdminUpdateUser, db: Session = Depends
 def admin_delete_user(user_id: int, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(
         models.User.id == user_id,
-        models.User.is_deleted == False,  # noqa: E712
+        or_(models.User.is_deleted == False, models.User.is_deleted == None),  # noqa: E712, E711
     ).first()
     if not user:
         raise HTTPException(404, "User not found or already deleted")
@@ -1175,7 +1201,7 @@ def admin_list_deleted_users(db: Session = Depends(get_db)):
 def check_admin_role(email: str = Query(...), db: Session = Depends(get_db)):
     user = db.query(models.User).filter(
         models.User.email == email,
-        models.User.is_deleted == False,  # noqa: E712
+        or_(models.User.is_deleted == False, models.User.is_deleted == None),  # noqa: E712, E711
     ).first()
     if not user:
         raise HTTPException(404, "User not found")

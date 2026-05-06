@@ -181,7 +181,10 @@
     </div>
 
     <script>
-        const BASE      = "https://new-fastapi-e-commerce-website.onrender.com";
+        // Auto-detect: localhost → local FastAPI, live domain → Render backend
+        const BASE = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+            ? "http://localhost:8000"
+            : "https://new-fastapi-e-commerce-website.onrender.com";
         const params    = new URLSearchParams(window.location.search);
         const orderId   = params.get("order_id") || "";
         const userEmail = localStorage.getItem("email") || params.get("email") || "";
