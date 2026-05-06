@@ -22,7 +22,7 @@ from pydantic import BaseModel
 # ── Config ────────────────────────────────────────────────────────
 stripe.api_key  = os.getenv("STRIPE_SECRET_KEY")          # sk_test_...
 WEBHOOK_SECRET  = os.getenv("STRIPE_WEBHOOK_SECRET", "")  # whsec_...
-APP_HOST        = os.getenv("APP_HOST", "http://localhost:8000")
+APP_HOST        = os.getenv("APP_HOST", "https://new-fastapi-e-commerce-website.onrender.com")
 
 stripe_router = APIRouter(prefix="/stripe", tags=["Stripe"])
 
