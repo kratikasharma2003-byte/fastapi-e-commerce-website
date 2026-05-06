@@ -5,10 +5,9 @@ import uuid
 import os
 
 from contextlib import asynccontextmanager, contextmanager
-
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, Depends, HTTPException, Request, Form, Query
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -79,12 +78,12 @@ templates = Jinja2Templates(directory="templates")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://new-fastapi-e-commerce-website.onrender.com",
-        "*"],
+    allow_origins=["*"],  # or your frontend domain
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.getenv("SESSION_SECRET", "change-me-in-production"),
@@ -1220,7 +1219,7 @@ def stripe_create_checkout(
     request.session["stripe_email"]    = data.user_email
     request.session["stripe_order_id"] = order.id
 
-    app_host   = os.getenv("APP_HOST", "http://127.0.0.1:8000").rstrip("/")
+    app_host   = os.getenv("APP_HOST", "https://new-fastapi-e-commerce-website.onrender.com").rstrip("/")
     success_url = f"{app_host}/stripe/success?session_id={{CHECKOUT_SESSION_ID}}&order_id={order.id}"
     cancel_url  = f"{app_host}/stripe/cancel-page"
 
