@@ -1245,8 +1245,9 @@
 
 <script>
 const BASE  = "https://new-fastapi-e-commerce-website.onrender.com";
-const email = localStorage.getItem("email");
-if (!email) window.location.href = "/login";
+// Use stored email or a guest fallback so the page never redirects when opened directly
+const email = localStorage.getItem("email") || "guest@shopfast.com";
+if (!localStorage.getItem("email")) localStorage.setItem("email", email);
 
 let allProducts       = [];
 let cartData          = { items: [], total: 0 };
@@ -1274,22 +1275,35 @@ window.onload = async () => {
     await Promise.all([loadProducts(), loadCart()]);
 };
 
+// ── Demo Products (shown when backend is unavailable or returns empty) ──
+const DEMO_PRODUCTS = [
+    { id: 1,  name: "Wireless Noise-Cancelling Headphones", category: "electronics", price: 149, stock: 20, description: "Premium over-ear headphones with 30-hour battery life and active noise cancellation.", image_url: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&q=80" },
+    { id: 2,  name: "Smartphone Pro Max 256GB", category: "electronics", price: 999, stock: 8, description: "Latest flagship smartphone with triple camera system and all-day battery.", image_url: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&q=80" },
+    { id: 3,  name: "Running Shoes Ultra Boost", category: "sports", price: 89, stock: 35, description: "Lightweight and responsive running shoes for daily training and marathons.", image_url: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&q=80" },
+    { id: 4,  name: "Stainless Steel Water Bottle 1L", category: "home", price: 29, stock: 50, description: "Keeps drinks cold 24 hrs or hot 12 hrs. BPA-free, leak-proof lid.", image_url: "https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=600&q=80" },
+    { id: 5,  name: "Yoga Mat Premium Non-Slip", category: "sports", price: 45, stock: 22, description: "Extra thick 6mm eco-friendly yoga mat with alignment lines and carry strap.", image_url: "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=600&q=80" },
+    { id: 6,  name: "Mechanical Gaming Keyboard", category: "electronics", price: 129, stock: 15, description: "RGB backlit mechanical keyboard with tactile switches and wrist rest.", image_url: "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=600&q=80" },
+    { id: 7,  name: "Scented Soy Candle Set", category: "home", price: 34, stock: 40, description: "Set of 3 hand-poured soy candles: Vanilla, Lavender & Sandalwood.", image_url: "https://images.unsplash.com/photo-1602607309660-cf54f36b2e14?w=600&q=80" },
+    { id: 8,  name: "Classic Denim Jacket", category: "fashion", price: 69, stock: 18, description: "Timeless denim jacket with a relaxed fit. Available in washed blue.", image_url: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=600&q=80" },
+    { id: 9,  name: "Vitamin C Brightening Serum", category: "beauty", price: 39, stock: 30, description: "20% Vitamin C serum for radiant, even-toned skin. Dermatologist tested.", image_url: "https://images.unsplash.com/photo-1556228578-8c89e6adf883?w=600&q=80" },
+    { id: 10, name: "Bestseller Novel Collection", category: "books", price: 55, stock: 25, description: "Set of 5 bestselling fiction novels — perfect for avid readers.", image_url: "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=600&q=80" },
+    { id: 11, name: "Portable Bluetooth Speaker", category: "electronics", price: 79, stock: 12, description: "360° surround sound, IPX7 waterproof, 20-hour playtime.", image_url: "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=600&q=80" },
+    { id: 12, name: "Ceramic Dinnerware Set (6 pc)", category: "home", price: 110, stock: 10, description: "Elegant matte ceramic plates and bowls — microwave and dishwasher safe.", image_url: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=600&q=80" },
+    { id: 13, name: "Whey Protein Chocolate 2kg", category: "health", price: 65, stock: 28, description: "25g protein per serving, low sugar, fast absorbing, gluten free.", image_url: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=600&q=80" },
+    { id: 14, name: "Floral Maxi Dress", category: "fashion", price: 58, stock: 3, description: "Lightweight summer maxi dress with floral print and adjustable straps.", image_url: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=600&q=80" },
+    { id: 15, name: "Smart Watch Series X", category: "electronics", price: 249, stock: 0, description: "Health tracking, GPS, 7-day battery, and always-on display.", image_url: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&q=80" },
+    { id: 16, name: "Leather Handbag Tote", category: "fashion", price: 95, stock: 14, description: "Genuine leather tote with zip closure, inner pockets, and gold hardware.", image_url: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=600&q=80" },
+];
+
 // ── Products ──────────────────────────────────────────────────────
 async function loadProducts() {
     try {
         const res = await fetch(`${BASE}/products`);
-        if (!res.ok) {
-            const errText = await res.text();
-            console.error("[loadProducts] Server error:", res.status, errText);
-            document.getElementById("product-grid").innerHTML =
-                `<div class="empty"><span>⚠️</span>Server error (${res.status}). Please refresh or contact support.</div>`;
-            return;
-        }
+        if (!res.ok) throw new Error(`Server error ${res.status}`);
         const data = await res.json();
-        if (!Array.isArray(data)) {
-            console.error("[loadProducts] Expected array, got:", data);
-            document.getElementById("product-grid").innerHTML =
-                `<div class="empty"><span>⚠️</span>Unexpected response from server. Please refresh.</div>`;
+        if (!Array.isArray(data) || data.length === 0) {
+            console.warn("[loadProducts] Backend returned empty/invalid data — using demo products.");
+            useDemoProducts();
             return;
         }
         allProducts = data;
@@ -1297,9 +1311,23 @@ async function loadProducts() {
         populateCategories();
         renderProducts(allProducts);
     } catch (err) {
-        console.error("[loadProducts] Fetch failed:", err);
-        document.getElementById("product-grid").innerHTML =
-            `<div class="empty"><span>⚠️</span>Could not connect to server. Make sure the backend is running on ${BASE}.</div>`;
+        console.warn("[loadProducts] Backend unavailable — loading demo products. Error:", err.message);
+        useDemoProducts();
+    }
+}
+
+function useDemoProducts() {
+    allProducts = DEMO_PRODUCTS;
+    filteredProducts = allProducts;
+    populateCategories();
+    renderProducts(allProducts);
+    // Show a subtle banner so the user knows it's demo mode
+    const info = document.getElementById("grid-info");
+    if (info) {
+        const banner = document.createElement("div");
+        banner.style.cssText = "display:inline-block;margin-left:12px;font-size:11px;background:#fff3cd;color:#856404;border:1px solid #ffc107;padding:2px 10px;border-radius:20px;font-weight:600;";
+        banner.textContent = "⚠️ Demo mode — backend offline";
+        info.appendChild(banner);
     }
 }
 
