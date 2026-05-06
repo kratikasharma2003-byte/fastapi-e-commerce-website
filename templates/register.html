@@ -10,92 +10,227 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
+    padding: 20px 0;
 }
 .container {
     background: white;
     padding: 30px;
     border-radius: 10px;
     width: 350px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
 }
-.error { color: red; font-size: 12px; }
-.message { color: green; text-align:center; }
-button { width:100%; padding:10px; margin-top:10px; }
+h2 { text-align: center; }
+label { font-size: 13px; color: #555; }
+input, select {
+    width: 100%;
+    padding: 10px;
+    margin: 5px 0 2px 0;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+.password-wrapper { position: relative; }
+.password-wrapper input { padding-right: 40px; }
+.toggle-password {
+    position: absolute;
+    right: 10px;
+    top: 35px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #555;
+}
+button {
+    width: 100%;
+    padding: 10px;
+    background: #4facfe;
+    border: none;
+    color: white;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 8px;
+}
+button:hover { background: #0077ff; }
+button:disabled { background: gray; cursor: not-allowed; }
+.message { text-align: center; margin-top: 10px; color: green; }
+.error   { color: red; font-size: 12px; margin-bottom: 4px; }
+p { text-align: center; margin-top: 10px; }
 </style>
 </head>
 <body>
 
 <div class="container">
-<h2>Register</h2>
+    <h2>Register</h2>
 
-<input id="username" placeholder="Username"><div id="usernameError" class="error"></div>
-<input id="email" placeholder="Email"><div id="emailError" class="error"></div>
-<input id="password" type="password" placeholder="Password"><div id="passwordError" class="error"></div>
-<input id="confirm_password" type="password" placeholder="Confirm Password"><div id="confirmError" class="error"></div>
-<input id="phone" placeholder="Phone"><div id="phoneError" class="error"></div>
-<input id="dob" type="date"><div id="dobError" class="error"></div>
+    <label>Username</label>
+    <input type="text" id="username" placeholder="Enter username">
+    <div class="error" id="usernameError"></div>
 
-<select id="gender">
-<option value="">Select Gender</option>
-<option value="male">Male</option>
-<option value="female">Female</option>
-</select>
-<div id="genderError" class="error"></div>
+    <label>Email</label>
+    <input type="email" id="email" placeholder="Enter email">
+    <div class="error" id="emailError"></div>
 
-<button onclick="register()" id="btn">Register</button>
+    <label>Password</label>
+    <div class="password-wrapper">
+        <input type="password" id="password" placeholder="Enter password">
+        <span class="toggle-password" onclick="togglePassword('password', this)">👁️</span>
+    </div>
+    <div class="error" id="passwordError"></div>
 
-<div id="msg" class="message"></div>
-<div id="err" class="error"></div>
+    <label>Confirm Password</label>
+    <div class="password-wrapper">
+        <input type="password" id="confirm_password" placeholder="Confirm password">
+        <span class="toggle-password" onclick="togglePassword('confirm_password', this)">👁️</span>
+    </div>
+    <div class="error" id="confirmError"></div>
 
+    <label>Phone</label>
+    <input type="text" id="phone" placeholder="Enter phone number">
+    <div class="error" id="phoneError"></div>
+
+    <label>Date of Birth</label>
+    <input type="date" id="dob">
+    <div class="error" id="dobError"></div>
+
+    <label>Gender</label>
+    <select id="gender">
+        <option value="">Select Gender</option>
+        <option value="male">Male</option>
+        <option value="female">Female</option>
+        <option value="other">Other</option>
+    </select>
+    <div class="error" id="genderError"></div>
+
+    <button id="registerBtn" onclick="register()">Register</button>
+
+    <div class="message" id="registerMsg"></div>
+    <div class="error"   id="registerError"></div>
+
+    <p><a href="/login">Already have an account? Login</a></p>
 </div>
 
 <script>
-const API = "https://new-fastapi-e-commerce-website.onrender.com";
+// ✅ Change only this one line to update ALL API calls
+const API_BASE = "https://new-fastapi-e-commerce-website.onrender.com";
 
-// wake server
-fetch(API + "/products").catch(()=>{});
+// Wake up the Render free-tier server on page load (sleeps after 15 min)
+(async function() { try { await fetch(API_BASE + '/products'); } catch(_) {} })();
+
+function togglePassword(fieldId, element) {
+    const input = document.getElementById(fieldId);
+    if (input.type === "password") {
+        input.type = "text";
+        element.innerText = "🙈";
+    } else {
+        input.type = "password";
+        element.innerText = "👁️";
+    }
+}
 
 async function register() {
+    // Clear all errors
+    ["usernameError","emailError","passwordError","confirmError",
+     "phoneError","dobError","genderError","registerError"].forEach(
+        id => document.getElementById(id).innerText = ""
+    );
+    document.getElementById("registerMsg").innerText = "";
 
-const data = {
-    username: username.value.trim(),
-    email: email.value.trim(),
-    password: password.value,
-    phone: phone.value.trim(),
-    dob: dob.value,
-    gender: gender.value
-};
+    const data = {
+        username:         document.getElementById("username").value.trim(),
+        email:            document.getElementById("email").value.trim(),
+        password:         document.getElementById("password").value,
+        confirm_password: document.getElementById("confirm_password").value,
+        phone:            document.getElementById("phone").value.trim(),
+        dob:              document.getElementById("dob").value,
+        gender:           document.getElementById("gender").value
+    };
 
-// ❗ DO NOT send confirm_password to backend
-if (password.value !== confirm_password.value) {
-    confirmError.innerText = "Passwords do not match";
-    return;
-}
+    let hasError = false;
 
-btn.disabled = true;
-btn.innerText = "Registering...";
-
-try {
-    const res = await fetch(API + "/register", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(data)
-    });
-
-    const result = await res.json();
-
-    if (res.ok) {
-        msg.innerText = "✅ Registered!";
-        setTimeout(()=> location.href="/login",1000);
-    } else {
-        err.innerText = result.detail || "Error";
+    if (!data.username) {
+        document.getElementById("usernameError").innerText = "Username is required"; hasError = true;
+    } else if (!/^[a-zA-Z0-9_]{3,20}$/.test(data.username)) {
+        document.getElementById("usernameError").innerText = "3-20 chars: letters, numbers, underscore"; hasError = true;
     }
 
-} catch(e) {
-    err.innerText = "Server waking up... try again in 20 sec";
-}
+    if (!data.email) {
+        document.getElementById("emailError").innerText = "Email is required"; hasError = true;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+        document.getElementById("emailError").innerText = "Invalid email format"; hasError = true;
+    }
 
-btn.disabled = false;
-btn.innerText = "Register";
+    if (!data.password) {
+        document.getElementById("passwordError").innerText = "Password is required"; hasError = true;
+    } else if (data.password.length < 6 ||
+               !/[A-Z]/.test(data.password) ||
+               !/[a-z]/.test(data.password) ||
+               !/[0-9]/.test(data.password) ||
+               !/[!@#$%^&*]/.test(data.password)) {
+        document.getElementById("passwordError").innerText =
+            "Min 6 chars with uppercase, lowercase, number & special char (!@#$%^&*)"; hasError = true;
+    }
+
+    if (!data.confirm_password) {
+        document.getElementById("confirmError").innerText = "Please confirm password"; hasError = true;
+    } else if (data.password !== data.confirm_password) {
+        document.getElementById("confirmError").innerText = "Passwords do not match"; hasError = true;
+    }
+
+    if (!data.phone) {
+        document.getElementById("phoneError").innerText = "Phone is required"; hasError = true;
+    } else if (!/^\d{10,15}$/.test(data.phone)) {
+        document.getElementById("phoneError").innerText = "Phone must be 10-15 digits"; hasError = true;
+    }
+
+    if (!data.dob) {
+        document.getElementById("dobError").innerText = "Date of birth is required"; hasError = true;
+    } else if (new Date(data.dob) >= new Date()) {
+        document.getElementById("dobError").innerText = "DOB must be in the past"; hasError = true;
+    }
+
+    if (!data.gender) {
+        document.getElementById("genderError").innerText = "Please select gender"; hasError = true;
+    }
+
+    if (hasError) return;
+
+    const btn = document.getElementById("registerBtn");
+    btn.disabled = true;
+    btn.innerText = "Registering...";
+
+    try {
+        // ✅ FIXED: correctly calls /register endpoint
+        const res = await fetch(`${API_BASE}/register`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data)
+        });
+
+        let result;
+        try { result = await res.json(); }
+        catch { result = { detail: "Invalid server response" }; }
+
+        if (res.ok) {
+            document.getElementById("registerMsg").innerText = "✅ Registered successfully! Redirecting...";
+            setTimeout(() => { window.location.href = "/login"; }, 1500);
+        } else {
+            if (Array.isArray(result.detail)) {
+                document.getElementById("registerError").innerText =
+                    result.detail.map(e => e.msg).join(", ");
+            } else {
+                document.getElementById("registerError").innerText =
+                    result.detail || "Registration failed. Please try again.";
+            }
+        }
+    } catch (e) {
+        document.getElementById("registerError").innerText =
+            "❌ Server is starting up (free tier cold start). Please wait ~30 seconds and try again.";
+        console.error(e);
+    }
+
+    btn.disabled = false;
+    btn.innerText = "Register";
 }
 </script>
 
