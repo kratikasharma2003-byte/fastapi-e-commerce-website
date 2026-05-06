@@ -23,8 +23,8 @@ from sqlalchemy import or_, desc, asc
 logger.add("logs/app.log", rotation="1 MB")
 from dotenv import load_dotenv
 load_dotenv()
-DATABASE_URL = os.getenv("DATABASE_URL")
-
+#DATABASE_URL = os.getenv("DATABASE_URL")
+BASE_URL = os.getenv("BASE_URL")
 
 import models, schemas, auth
 from database import engine, get_db
@@ -1220,84 +1220,37 @@ def inr_to_usd(inr_amount: float) -> float:
 
 
 @app.post("/stripe/create-checkout-session")
-def stripe_create_checkout(
-    request: Request,
-    data: CheckoutRequest,
-    db: Session = Depends(get_db),
-):
-    cart_items = db.query(CartItem).filter(CartItem.user_email == data.user_email).all()
-    if not cart_items:
-        raise HTTPException(400, "Cart is empty")
-
-    order, order_items = _build_order_from_cart(data.user_email, db)
-    db.commit()
-    db.refresh(order)
-
-    try:
-        invalidate_cart(data.user_email)
-    except Exception:
-        pass  # Redis optional
-    try:
-        invalidate_user_orders(data.user_email)
-    except Exception:
-        pass  # Redis optional
-
-    request.session["stripe_email"]    = data.user_email
-    request.session["stripe_order_id"] = order.id
-
-    app_host   = os.getenv("APP_HOST", "https://new-fastapi-e-commerce-website.onrender.com").rstrip("/")
-    success_url = f"{app_host}/stripe/success?session_id={{CHECKOUT_SESSION_ID}}&order_id={order.id}"
-    cancel_url  = f"{app_host}/stripe/cancel-page"
-
-    # Build line items from order items
-    # order_items is a list of dicts: {"name": ..., "quantity": ..., "price": ...}
-    line_items = []
-    for oi in order_items:
-        unit_amount_cents = max(int(round(inr_to_usd(oi["price"]) * 100)), 1)
-        line_items.append({
-            "price_data": {
-                "currency": "usd",
-                "product_data": {"name": oi["name"]},
-                "unit_amount": unit_amount_cents,
-            },
-            "quantity": oi["quantity"],
-        })
+def create_checkout_session(data: CheckoutRequest):
+    if not data.user_email:
+        raise HTTPException(status_code=400, detail="Email is required")
 
     try:
         session = stripe.checkout.Session.create(
             payment_method_types=["card"],
-            line_items=line_items,
             mode="payment",
-            success_url=success_url,
-            cancel_url=cancel_url,
+            line_items=[{
+                "price_data": {
+                    "currency": "inr",
+                    "product_data": {
+                        "name": "ShopFast Order",
+                    },
+                    "unit_amount": 14900,
+                },
+                "quantity": 1,
+            }],
             customer_email=data.user_email,
-            metadata={"order_id": str(order.id), "user_email": data.user_email},
+
+            # ✅ FIXED HERE
+            success_url=f"{BASE_URL}/success.html",
+            cancel_url=f"{BASE_URL}/cancel.html",
         )
-    except stripe.error.StripeError as e:
-        print(f"[Stripe] create session failed: {e}")
-        order.status = "Failed"
-        try:
-            db.commit()
-        except Exception:
-            db.rollback()
-        raise HTTPException(502, f"Stripe error: {str(e)}")
 
-    try:
-        setattr(order, "stripe_session_id", session.id)
-        db.commit()
-    except Exception as col_err:
-        db.rollback()
-        print(f"[Stripe] WARNING: stripe_session_id column missing — {col_err}")
+        return {"checkout_url": session.url}
 
-    print(f"[Stripe] ✅ Session created | DB#{order.id} | Session#{session.id}")
-
-    return {
-        "checkout_url": session.url,
-        "session_id":   session.id,
-        "order_id":     order.id,
-    }
-
-
+    except Exception as e:
+        print("Stripe error:", str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+    
 @app.get("/stripe/success")
 def stripe_success(
     request: Request,
