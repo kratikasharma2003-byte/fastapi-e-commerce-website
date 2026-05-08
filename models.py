@@ -63,8 +63,6 @@ class Order(Base):
     user_name  = Column(String, default="")
     total      = Column(Float, nullable=False)
     status     = Column(String, default="Pending")
-    transaction_id = Column(String, unique=True, nullable=True)
-    stripe_session_id = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -100,7 +98,6 @@ class Payment(Base):
     status     = Column(String, default="Pending")       # Pending / Completed / Failed
     method     = Column(String, default="PayPal")        # PayPal / Stripe / etc.
     created_at = Column(DateTime, default=datetime.utcnow)
- 
     order = relationship("Order", back_populates="payment")
 
 class WebhookEvent(Base):

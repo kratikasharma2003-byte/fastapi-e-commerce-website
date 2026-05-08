@@ -23,7 +23,6 @@
         }
         @keyframes up { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
 
-        /* Stripe logo block */
         .stripe-logo {
             width: 72px; height: 72px;
             background: linear-gradient(135deg, #635bff, #8b7fff);
@@ -43,7 +42,6 @@
         }
         .sub { color: #888; font-size: 14px; line-height: 1.6; margin-bottom: 28px; }
 
-        /* Order summary box */
         .box {
             background: #f7f8fc; border-radius: 16px;
             padding: 18px 20px; margin-bottom: 28px; text-align: left;
@@ -65,7 +63,6 @@
         .row .v { color: #1a1a2e; font-weight: 700; }
         .row .v.purple { color: #635bff; }
 
-        /* Features row */
         .features {
             display: flex; gap: 10px;
             justify-content: center;
@@ -79,7 +76,6 @@
             display: flex; align-items: center; gap: 5px;
         }
 
-        /* Redirect button */
         .pay-btn {
             display: flex; align-items: center; justify-content: center; gap: 10px;
             width: 100%; padding: 15px;
@@ -89,7 +85,7 @@
             font-size: 16px; font-weight: 700; cursor: pointer;
             transition: opacity .2s, transform .15s;
             box-shadow: 0 4px 18px rgba(99,91,255,.32);
-            margin-bottom: 10px; text-decoration: none;
+            margin-bottom: 10px;
         }
         .pay-btn:hover:not(:disabled) { opacity: .9; transform: translateY(-1px); }
         .pay-btn:disabled { background: #d5d5e5; color: #aaa; cursor: not-allowed; box-shadow: none; }
@@ -102,7 +98,6 @@
         }
         .cancel-link:hover { color: #635bff; }
 
-        /* Spinner */
         .spinner {
             width: 18px; height: 18px;
             border: 2.5px solid rgba(255,255,255,0.4);
@@ -118,7 +113,6 @@
             display: flex; align-items: center; justify-content: center; gap: 6px;
         }
 
-        /* Error state */
         .error-box {
             display: none;
             background: #fff0f0; border: 1px solid #ffcccc;
@@ -127,6 +121,16 @@
             margin-bottom: 16px; text-align: left;
         }
         .error-box.show { display: block; }
+
+        /* ── FIX: session-lost warning box ── */
+        .warn-box {
+            display: none;
+            background: #fffbe6; border: 1px solid #ffe58f;
+            border-radius: 12px; padding: 14px 16px;
+            font-size: 13px; color: #856404;
+            margin-bottom: 16px; text-align: left;
+        }
+        .warn-box.show { display: block; }
     </style>
 </head>
 <body>
@@ -151,6 +155,10 @@
                 <span class="v purple" id="disp-total">—</span>
             </div>
             <div class="row">
+                <span class="l">Account</span>
+                <span class="v" id="disp-email" style="font-size:12px;word-break:break-all">—</span>
+            </div>
+            <div class="row">
                 <span class="l">Payment via</span>
                 <span class="v">💳 Stripe Checkout</span>
             </div>
@@ -162,6 +170,12 @@
             <div class="feature">🍎 Apple Pay</div>
             <div class="feature">🔒 256-bit SSL</div>
             <div class="feature">✅ PCI-DSS</div>
+        </div>
+
+        <!-- Session-lost warning (shown if no email found) -->
+        <div class="warn-box" id="warn-box">
+            ⚠️ Your session may have expired. If payment fails, please
+            <a href="/login" style="color:#635bff">log in again</a> and retry.
         </div>
 
         <div class="error-box" id="error-box">
@@ -181,18 +195,48 @@
     </div>
 
     <script>
-        // Auto-detect: localhost → local FastAPI, live domain → Render backend
+        // ── Auto-detect backend base URL ──────────────────────────────────────
         const BASE = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
             ? "http://127.0.0.1:8000"
             : "https://new-fastapi-e-commerce-website.onrender.com";
-        const params    = new URLSearchParams(window.location.search);
-        const orderId   = params.get("order_id") || "";
-        const userEmail = localStorage.getItem("email") || params.get("email") || "";
-        const total     = params.get("total") || "";
 
-        // Populate display
+        // ── Resolve parameters ────────────────────────────────────────────────
+        // Priority: URL param → localStorage (set at login) → cookie fallback
+        const params    = new URLSearchParams(window.location.search);
+        const orderId   = params.get("order_id") || localStorage.getItem("lastOrderId") || "";
+        const total     = params.get("total")    || localStorage.getItem("lastOrderTotal") || "";
+
+        // FIX: Try multiple keys where email might be stored
+        const userEmail = (
+            params.get("email") ||
+            localStorage.getItem("email") ||
+            localStorage.getItem("userEmail") ||
+            localStorage.getItem("user_email") ||
+            getCookieEmail() ||
+            ""
+        );
+
+        // ── Populate display ──────────────────────────────────────────────────
         document.getElementById("disp-order-id").textContent = orderId ? `#${orderId}` : "—";
-        document.getElementById("disp-total").textContent    = total ? `₹${parseFloat(total).toLocaleString()}` : "—";
+        document.getElementById("disp-total").textContent    = total   ? `₹${parseFloat(total).toLocaleString("en-IN")}` : "—";
+        document.getElementById("disp-email").textContent    = userEmail || "Not detected";
+
+        // Show warning if email is missing (session may be lost)
+        if (!userEmail) {
+            document.getElementById("warn-box").classList.add("show");
+        }
+
+        // ── Cookie helper ─────────────────────────────────────────────────────
+        function getCookieEmail() {
+            const match = document.cookie.match(/(?:^|;\s*)email=([^;]+)/);
+            return match ? decodeURIComponent(match[1]) : "";
+        }
+
+        // ── Button label helper ───────────────────────────────────────────────
+        const BTN_LABEL = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <rect width="20" height="20" rx="4" fill="white" fill-opacity="0.25"/>
+            <path d="M10 5C9.17 5 8.5 5.67 8.5 6.5C8.5 8.5 11.5 8.5 11.5 10.5C11.5 11.33 10.83 12 10 12C9.17 12 8.5 11.33 8.5 10.5V10H7.5V10.5C7.5 11.88 8.62 13 10 13C11.38 13 12.5 11.88 12.5 10.5C12.5 8.5 9.5 8.5 9.5 6.5C9.5 6.22 9.72 6 10 6C10.28 6 10.5 6.22 10.5 6.5V7H11.5V6.5C11.5 5.12 10.38 4 10 5Z" fill="white"/>
+        </svg> Pay Securely with Stripe`;
 
         function showError(msg) {
             const box = document.getElementById("error-box");
@@ -200,11 +244,28 @@
             box.classList.add("show");
         }
 
+        function resetBtn() {
+            const btn = document.getElementById("pay-btn");
+            btn.disabled = false;
+            btn.innerHTML = BTN_LABEL;
+        }
+
+        // ── Main checkout function ─────────────────────────────────────────────
         async function startStripeCheckout() {
             const btn = document.getElementById("pay-btn");
 
-            if (!userEmail) {
-                showError("Session expired. Please log in and try again.");
+            // FIX: Re-check email at click time (in case it was set after page load)
+            const emailAtClick = (
+                localStorage.getItem("email") ||
+                localStorage.getItem("userEmail") ||
+                localStorage.getItem("user_email") ||
+                getCookieEmail() ||
+                userEmail
+            );
+
+            if (!emailAtClick) {
+                showError("Session expired — your email was not found. Please log in again.");
+                setTimeout(() => window.location.href = "/login", 2500);
                 return;
             }
 
@@ -212,38 +273,59 @@
             btn.innerHTML = `<div class="spinner"></div> Connecting to Stripe…`;
 
             try {
+                const body = { user_email: emailAtClick };
+                if (orderId) body.order_id = parseInt(orderId);
+
                 const res = await fetch(`${BASE}/stripe/create-checkout-session`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ user_email: userEmail }),
+                    credentials: "include",          // ← send session cookie
+                    body: JSON.stringify(body),
                 });
+
+                // FIX: Handle non-JSON error responses (e.g. 502 Bad Gateway HTML)
+                const contentType = res.headers.get("content-type") || "";
+                if (!contentType.includes("application/json")) {
+                    showError(`Server error (${res.status}). Is your FastAPI backend running?`);
+                    resetBtn();
+                    return;
+                }
 
                 const data = await res.json();
 
                 if (!res.ok) {
                     showError(data.detail || "Could not create Stripe session. Please try again.");
-                    btn.disabled = false;
-                    btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect width="20" height="20" rx="4" fill="white" fill-opacity="0.25"/><path d="M10 5C9.17 5 8.5 5.67 8.5 6.5C8.5 8.5 11.5 8.5 11.5 10.5C11.5 11.33 10.83 12 10 12C9.17 12 8.5 11.33 8.5 10.5V10H7.5V10.5C7.5 11.88 8.62 13 10 13C11.38 13 12.5 11.88 12.5 10.5C12.5 8.5 9.5 8.5 9.5 6.5C9.5 6.22 9.72 6 10 6C10.28 6 10.5 6.22 10.5 6.5V7H11.5V6.5C11.5 5.12 10.38 4 10 5Z" fill="white"/></svg> Pay Securely with Stripe`;
+                    resetBtn();
                     return;
                 }
 
                 if (!data.checkout_url) {
                     showError("Stripe did not return a checkout URL. Please try again.");
-                    btn.disabled = false;
-                    btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect width="20" height="20" rx="4" fill="white" fill-opacity="0.25"/><path d="M10 5C9.17 5 8.5 5.67 8.5 6.5C8.5 8.5 11.5 8.5 11.5 10.5C11.5 11.33 10.83 12 10 12C9.17 12 8.5 11.33 8.5 10.5V10H7.5V10.5C7.5 11.88 8.62 13 10 13C11.38 13 12.5 11.88 12.5 10.5C12.5 8.5 9.5 8.5 9.5 6.5C9.5 6.22 9.72 6 10 6C10.28 6 10.5 6.22 10.5 6.5V7H11.5V6.5C11.5 5.12 10.38 4 10 5Z" fill="white"/></svg> Pay Securely with Stripe`;
+                    resetBtn();
                     return;
                 }
+
+                // Save order info in localStorage before leaving the page
+                if (data.order_id) localStorage.setItem("lastOrderId",    String(data.order_id));
+                if (data.total)    localStorage.setItem("lastOrderTotal",  String(data.total));
 
                 // Redirect to Stripe hosted Checkout
                 window.location.href = data.checkout_url;
 
             } catch (err) {
-                console.error(err);
-                showError("Network error. Please check your connection and try again.");
-                btn.disabled = false;
-                btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect width="20" height="20" rx="4" fill="white" fill-opacity="0.25"/><path d="M10 5C9.17 5 8.5 5.67 8.5 6.5C8.5 8.5 11.5 8.5 11.5 10.5C11.5 11.33 10.83 12 10 12C9.17 12 8.5 11.33 8.5 10.5V10H7.5V10.5C7.5 11.88 8.62 13 10 13C11.38 13 12.5 11.88 12.5 10.5C12.5 8.5 9.5 8.5 9.5 6.5C9.5 6.22 9.72 6 10 6C10.28 6 10.5 6.22 10.5 6.5V7H11.5V6.5C11.5 5.12 10.38 4 10 5Z" fill="white"/></svg> Pay Securely with Stripe`;
+                console.error("[Stripe] fetch error:", err);
+                if (err.message && err.message.includes("Failed to fetch")) {
+                    showError("Cannot reach backend. Make sure your FastAPI server is running: uvicorn main:app --reload");
+                } else {
+                    showError("Network error. Please check your connection and try again.");
+                }
+                resetBtn();
             }
         }
+
+        // ── Auto-populate display fields ──────────────────────────────────────
+        document.getElementById("disp-order-id").textContent = orderId ? `#${orderId}` : "—";
+        document.getElementById("disp-total").textContent    = total   ? `₹${parseFloat(total).toLocaleString("en-IN")}` : "—";
     </script>
 </body>
 </html>

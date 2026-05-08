@@ -7,7 +7,7 @@ import os
 from contextlib import asynccontextmanager, contextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, Depends, HTTPException, Request, Form, Query
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse,FileResponse
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -19,12 +19,13 @@ from datetime import datetime, timezone
 from loguru import logger
 from sqlalchemy import or_, desc, asc
 
+
 # ── Load .env FIRST ─────────────────────────────────────────────────────────
 logger.add("logs/app.log", rotation="1 MB")
 from dotenv import load_dotenv
 load_dotenv()
-#DATABASE_URL = os.getenv("DATABASE_URL")
-BASE_URL = os.getenv("BASE_URL")
+
+BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:8000").rstrip("/")
 
 import models, schemas, auth
 from database import engine, get_db
@@ -73,12 +74,12 @@ async def lifespan(app: FastAPI):
 # ══════════════════════════════════════════════════════════════════
 
 app = FastAPI(title="ShopFast API", lifespan=lifespan)
-app.mount("/static", StaticFiles(directory="static"), name="static")
+#app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # or your frontend domain
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -112,7 +113,6 @@ def db_transaction(db: Session):
     except Exception as e:
         db.rollback()
         raise e
-
 
 # ══════════════════════════════════════════════════════════════════
 #  PYDANTIC SCHEMAS
@@ -525,7 +525,6 @@ def search_products(
 def get_products(db: Session = Depends(get_db)):
     cache_key = Keys.products_all()
 
-    # Only use cache if it has a non-empty list (stale empty cache causes demo-mode fallback)
     cached = cache.get(cache_key)
     if cached and isinstance(cached, list) and len(cached) > 0:
         return cached
@@ -549,7 +548,6 @@ def get_products(db: Session = Depends(get_db)):
         for p in products
     ]
 
-    # Never cache an empty list — that would poison the cache
     if result:
         cache.set(cache_key, result, TTL["products_all"])
     else:
@@ -609,11 +607,11 @@ def create_product(
     try:
         invalidate_product(product.id)
     except Exception:
-        pass  # Redis optional
+        pass
     try:
         invalidate_admin_stats()
     except Exception:
-        pass  # Redis optional
+        pass
     return product
 
 
@@ -645,7 +643,7 @@ def update_product(
     try:
         invalidate_product(product_id)
     except Exception:
-        pass  # Redis optional
+        pass
     return product
 
 
@@ -662,11 +660,11 @@ def delete_product(product_id: int, db: Session = Depends(get_db)):
     try:
         invalidate_product(product_id)
     except Exception:
-        pass  # Redis optional
+        pass
     try:
         invalidate_admin_stats()
     except Exception:
-        pass  # Redis optional
+        pass
     return {"message": "Product soft-deleted successfully", "product_id": product_id}
 
 
@@ -684,7 +682,7 @@ def restore_product(product_id: int, db: Session = Depends(get_db)):
     try:
         invalidate_product(product_id)
     except Exception:
-        pass  # Redis optional
+        pass
     return {"message": "Product restored successfully", "product_id": product_id}
 
 
@@ -711,7 +709,6 @@ def list_deleted_products(db: Session = Depends(get_db)):
 
 @app.post("/cart/add")
 def add_to_cart(data: CartAdd, db: Session = Depends(get_db)):
-    # Treat NULL is_deleted as not-deleted for backwards compatibility
     user = db.query(models.User).filter(
         models.User.email == data.user_email,
         or_(models.User.is_deleted == False, models.User.is_deleted == None),  # noqa: E712, E711
@@ -746,7 +743,7 @@ def add_to_cart(data: CartAdd, db: Session = Depends(get_db)):
     try:
         invalidate_cart(data.user_email)
     except Exception:
-        pass  # Redis optional
+        pass
     return {"message": "Added to cart"}
 
 
@@ -795,7 +792,7 @@ def update_cart(cart_item_id: int, quantity: int = Query(...), db: Session = Dep
     try:
         invalidate_cart(email)
     except Exception:
-        pass  # Redis optional
+        pass
     return {"message": "Cart updated"}
 
 
@@ -810,7 +807,7 @@ def remove_from_cart(cart_item_id: int, db: Session = Depends(get_db)):
     try:
         invalidate_cart(email)
     except Exception:
-        pass  # Redis optional
+        pass
     return {"message": "Item removed from cart"}
 
 
@@ -821,7 +818,7 @@ def clear_cart(email: str = Query(...), db: Session = Depends(get_db)):
     try:
         invalidate_cart(email)
     except Exception:
-        pass  # Redis optional
+        pass
     return {"message": "Cart cleared"}
 
 
@@ -894,15 +891,15 @@ def checkout(data: CheckoutRequest, db: Session = Depends(get_db)):
     try:
         invalidate_cart(data.user_email)
     except Exception:
-        pass  # Redis optional
+        pass
     try:
         invalidate_user_orders(data.user_email)
     except Exception:
-        pass  # Redis optional
+        pass
     try:
         invalidate_admin_stats()
     except Exception:
-        pass  # Redis optional
+        pass
 
     try:
         send_order_confirmation(data.user_email, order.id, order.total, items_for_email)
@@ -951,7 +948,6 @@ def get_orders(email: str = Query(...), db: Session = Depends(get_db)):
 def get_order_detail(order_id: int, email: str = Query(...), db: Session = Depends(get_db)):
     cache_key = Keys.order_single(order_id)
     cached = cache.get(cache_key)
-    # Only serve from cache if ownership matches (security check)
     if cached and cached.get("_owner") == email:
         return {k: v for k, v in cached.items() if k != "_owner"}
 
@@ -960,7 +956,7 @@ def get_order_detail(order_id: int, email: str = Query(...), db: Session = Depen
         raise HTTPException(404, "Order not found")
 
     data = {
-        "_owner":      order.user_email,          # internal, stripped before return
+        "_owner":      order.user_email,
         "order_id":    order.id,
         "total":       order.total,
         "status":      order.status,
@@ -1034,12 +1030,12 @@ def update_order_status_admin(order_id: int, status: str, db: Session = Depends(
     try:
         invalidate_user_orders(order.user_email, order_id=order_id)
     except Exception:
-        pass  # Redis optional
+        pass
     return {"message": "Status updated"}
 
 
 # ══════════════════════════════════════════════════════════════════
-#  ADMIN STATS  (new cached endpoint)
+#  ADMIN STATS
 # ══════════════════════════════════════════════════════════════════
 
 @app.get("/admin/stats")
@@ -1118,7 +1114,7 @@ def admin_update_user(user_id: int, data: AdminUpdateUser, db: Session = Depends
     try:
         invalidate_user_profile(user.email)
     except Exception:
-        pass  # Redis optional
+        pass
 
     return {
         "message": "User updated successfully",
@@ -1144,15 +1140,15 @@ def admin_delete_user(user_id: int, db: Session = Depends(get_db)):
     try:
         invalidate_user_profile(email)
     except Exception:
-        pass  # Redis optional
+        pass
     try:
         invalidate_cart(email)
     except Exception:
-        pass  # Redis optional
+        pass
     try:
         invalidate_admin_stats()
     except Exception:
-        pass  # Redis optional
+        pass
     return {"message": f"User {email} soft-deleted successfully"}
 
 
@@ -1170,7 +1166,7 @@ def admin_restore_user(user_id: int, db: Session = Depends(get_db)):
     try:
         invalidate_admin_stats()
     except Exception:
-        pass  # Redis optional
+        pass
     return {
         "message": "User restored successfully",
         "user": {
@@ -1212,82 +1208,109 @@ def check_admin_role(email: str = Query(...), db: Session = Depends(get_db)):
 #  STRIPE ROUTES
 # ══════════════════════════════════════════════════════════════════
 
-INR_TO_USD_RATE = 0.012
+class CartItem(BaseModel):
+    name: str
+    price: float
+    quantity: int
 
 
-def inr_to_usd(inr_amount: float) -> float:
-    return max(round(inr_amount * INR_TO_USD_RATE, 2), 0.01)
-
+class CheckoutRequest(BaseModel):
+    user_email: str
+    items: list[CartItem]
 
 @app.post("/stripe/create-checkout-session")
 def create_checkout_session(data: CheckoutRequest):
-    if not data.user_email:
-        raise HTTPException(status_code=400, detail="Email is required")
 
     try:
-        session = stripe.checkout.Session.create(
-            payment_method_types=["card"],
-            mode="payment",
-            line_items=[{
+
+        print("FULL REQUEST DATA:")
+        print(data)
+
+        line_items = []
+
+        total = 0
+
+        for item in data.items:
+
+            print("ITEM:", item)
+
+            amount = int(float(item.price) * 100)
+
+            qty = int(item.quantity)
+
+            print("PRICE:", amount)
+            print("QTY:", qty)
+
+            total += amount * qty
+
+            line_items.append({
                 "price_data": {
                     "currency": "inr",
                     "product_data": {
-                        "name": "ShopFast Order",
+                        "name": item.name
                     },
-                    "unit_amount": 14900,
+                    "unit_amount": amount
                 },
-                "quantity": 1,
-            }],
-            customer_email=data.user_email,
+                "quantity": qty
+            })
 
-            # ✅ FIXED HERE
-            success_url=f"{BASE_URL}/success.html",
-            cancel_url=f"{BASE_URL}/cancel.html",
+        print("FINAL LINE ITEMS:")
+        print(line_items)
+
+        print("TOTAL:", total)
+
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            mode="payment",
+            customer_email=data.user_email,
+            line_items=line_items,
+            success_url="http://127.0.0.1:8000/stripe/success?session_id={CHECKOUT_SESSION_ID}",
+            cancel_url="http://127.0.0.1:8000/stripe/cancel-page"
         )
 
-        return {"checkout_url": session.url}
+        return {
+            "checkout_url": session.url
+        }
 
     except Exception as e:
-        print("Stripe error:", str(e))
-        raise HTTPException(status_code=400, detail=str(e))
+        print("STRIPE ERROR:", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
     
+
 @app.get("/stripe/success")
 def stripe_success(
     request: Request,
     session_id: str,
-    order_id: int,
+    order_id: Optional[int] = None,
     db: Session = Depends(get_db),
 ):
-    user_email = request.session.get("stripe_email")
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+    except stripe.error.StripeError:
+        return RedirectResponse(url="/stripe/cancel-page?reason=stripe_error", status_code=303)
 
-    # Fallback: look up via session metadata if session cookie is lost
-    if not user_email:
-        try:
-            session = stripe.checkout.Session.retrieve(session_id)
-            user_email = session.customer_email or session.metadata.get("user_email")
-        except Exception:
-            return RedirectResponse(url="/stripe/cancel-page?reason=session_lost", status_code=303)
+    # Get email safely from multiple sources
+    user_email = (
+        request.session.get("stripe_email")
+        or session.customer_email
+        or (session.metadata or {}).get("user_email")
+    )
 
-    order = db.query(Order).filter(
-        Order.id         == order_id,
-        Order.user_email == user_email,
-    ).first()
+    # Get order_id from query param, then metadata
+    order_id = order_id or (session.metadata or {}).get("order_id")
+
+    if not order_id:
+        logger.warning("[stripe/success] Missing order_id")
+        return RedirectResponse(url="/stripe/cancel-page?reason=missing_order_id", status_code=303)
+
+    order = db.query(Order).filter(Order.id == int(order_id)).first()
 
     if not order:
-        print(f"[Stripe/success] ⚠️  Order #{order_id} not found")
+        logger.warning(f"[stripe/success] Order #{order_id} not found")
         return RedirectResponse(url="/stripe/cancel-page?reason=order_not_found", status_code=303)
 
     if order.status == "Paid":
         return RedirectResponse(url="/stripe/success-page", status_code=303)
-
-    # Verify payment with Stripe
-    try:
-        session = stripe.checkout.Session.retrieve(session_id)
-    except stripe.error.StripeError as e:
-        print(f"[Stripe/success] ❌ Session retrieve error: {e}")
-        order.status = "Failed"
-        db.commit()
-        return RedirectResponse(url="/stripe/cancel-page?reason=stripe_error", status_code=303)
 
     if session.payment_status != "paid":
         order.status = "Failed"
@@ -1297,48 +1320,44 @@ def stripe_success(
     payment_intent_id = session.payment_intent
 
     existing = db.query(Payment).filter(Payment.payment_id == payment_intent_id).first()
-    if existing:
-        return RedirectResponse(url="/stripe/success-page", status_code=303)
+    if not existing:
+        payment = Payment(
+            order_id=order.id,
+            payment_id=payment_intent_id or session_id,
+            status="Completed",
+            method="Stripe",
+        )
+        db.add(payment)
 
-    payment = Payment(
-        order_id   = order.id,
-        payment_id = payment_intent_id or session_id,
-        status     = "Completed",
-        method     = "Stripe",
-    )
-    db.add(payment)
     order.status = "Paid"
 
     try:
         db.commit()
-        db.refresh(order)
-        print(f"[Stripe/success] ✅ Order #{order.id} → Paid | PI={payment_intent_id}")
-    except SQLAlchemyError as e:
+        logger.info(f"[stripe/success] Order #{order.id} marked Paid")
+    except Exception as e:
         db.rollback()
-        print(f"[Stripe/success] ❌ DB commit failed: {e}")
+        logger.error(f"[stripe/success] DB error: {e}")
         return RedirectResponse(url="/stripe/cancel-page?reason=db_error", status_code=303)
 
-    try:
-        invalidate_user_orders(user_email, order_id=order.id)
-    except Exception:
-        pass  # Redis optional
-    try:
-        invalidate_admin_stats()
-    except Exception:
-        pass  # Redis optional
+    # Invalidate caches
+    for fn in (
+        lambda: invalidate_user_orders(order.user_email, order_id=order.id),
+        lambda: invalidate_admin_stats(),
+    ):
+        try:
+            fn()
+        except Exception:
+            pass
 
-    request.session.pop("stripe_email",    None)
-    request.session.pop("stripe_order_id", None)
-
+    # Send confirmation email
     try:
         items_for_email = [
             {"name": oi.product_name, "quantity": oi.quantity, "price": oi.price}
             for oi in order.items
         ]
-        send_order_confirmation(user_email, order.id, order.total, items_for_email)
-        print(f"[Stripe/success] 📧 Email sent to {user_email}")
+        send_order_confirmation(order.user_email, order.id, order.total, items_for_email)
     except Exception as e:
-        print(f"[Stripe/success] ⚠️  Email failed (non-fatal): {e}")
+        logger.warning(f"[stripe/success] Email failed: {e}")
 
     return RedirectResponse(url="/stripe/success-page", status_code=303)
 
@@ -1377,38 +1396,38 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
     except stripe.error.SignatureVerificationError:
-        print("[Stripe Webhook] ❌ Invalid signature")
+        logger.warning("[Stripe Webhook] Invalid signature")
         raise HTTPException(status_code=400, detail="Invalid Stripe signature")
     except Exception as e:
-        print(f"[Stripe Webhook] ❌ Error: {e}")
+        logger.error(f"[Stripe Webhook] Error: {e}")
         raise HTTPException(status_code=400, detail="Webhook error")
 
     event_type = event["type"]
-    print(f"[Stripe Webhook] Event: {event_type}")
+    logger.info(f"[Stripe Webhook] Event: {event_type}")
 
     if event_type == "checkout.session.completed":
         session     = event["data"]["object"]
-        order_id    = session.get("metadata", {}).get("order_id")
-        user_email  = session.get("metadata", {}).get("user_email") or session.get("customer_email")
+        order_id    = (session.get("metadata") or {}).get("order_id")
+        user_email  = (session.get("metadata") or {}).get("user_email") or session.get("customer_email")
         pi_id       = session.get("payment_intent")
         pay_status  = session.get("payment_status")
 
         if pay_status != "paid":
-            print(f"[Stripe Webhook] ℹ️  Session not paid yet: {pay_status}")
+            logger.info(f"[Stripe Webhook] Session not paid yet: {pay_status}")
             return {"status": "not_paid"}
 
         if not order_id:
-            print("[Stripe Webhook] Missing order_id in metadata")
+            logger.warning("[Stripe Webhook] Missing order_id in metadata")
             return {"status": "missing_order_id"}
 
         existing = db.query(Payment).filter(Payment.payment_id == pi_id).first()
         if existing:
-            print(f"[Stripe Webhook] Already processed PI {pi_id}")
+            logger.info(f"[Stripe Webhook] Already processed PI {pi_id}")
             return {"status": "already_processed"}
 
         order = db.query(Order).filter(Order.id == int(order_id)).first()
         if not order:
-            print(f"[Stripe Webhook] ⚠️  Order #{order_id} not found")
+            logger.warning(f"[Stripe Webhook] Order #{order_id} not found")
             return {"status": "order_not_found"}
 
         order.status = "Paid"
@@ -1421,16 +1440,16 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         db.add(payment)
         db.commit()
 
-        try:
-            invalidate_user_orders(order.user_email, order_id=order.id)
-        except Exception:
-            pass  # Redis optional
-        try:
-            invalidate_admin_stats()
-        except Exception:
-            pass  # Redis optional
+        for fn in (
+            lambda: invalidate_user_orders(order.user_email, order_id=order.id),
+            lambda: invalidate_admin_stats(),
+        ):
+            try:
+                fn()
+            except Exception:
+                pass
 
-        print(f"[Stripe Webhook] ✅ Payment saved | Order #{order.id} | PI={pi_id}")
+        logger.info(f"[Stripe Webhook] Payment saved | Order #{order.id} | PI={pi_id}")
 
         try:
             items_for_email = [
@@ -1438,9 +1457,9 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
                 for oi in order.items
             ]
             send_order_confirmation(order.user_email, order.id, order.total, items_for_email)
-            print(f"[Stripe Webhook] 📧 Email sent to {order.user_email}")
+            logger.info(f"[Stripe Webhook] Email sent to {order.user_email}")
         except Exception as e:
-            print(f"[Stripe Webhook] ⚠️  Email failed: {e}")
+            logger.warning(f"[Stripe Webhook] Email failed: {e}")
 
     return {"status": "ok"}
 
@@ -1475,19 +1494,19 @@ def payment_complete(data: PaymentCompleteRequest, db: Session = Depends(get_db)
     try:
         db.commit()
         db.refresh(order)
-        print(f"[DB] ✅ Custom payment saved | Order #{order.id} | TXN: {txn_id}")
+        logger.info(f"[payment/complete] Order #{order.id} paid | TXN: {txn_id}")
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(500, f"Database error: {str(e)}")
 
-    try:
-        invalidate_user_orders(data.user_email, order_id=data.order_id)
-    except Exception:
-        pass  # Redis optional
-    try:
-        invalidate_admin_stats()
-    except Exception:
-        pass  # Redis optional
+    for fn in (
+        lambda: invalidate_user_orders(data.user_email, order_id=data.order_id),
+        lambda: invalidate_admin_stats(),
+    ):
+        try:
+            fn()
+        except Exception:
+            pass
 
     try:
         items_for_email = [
@@ -1496,7 +1515,7 @@ def payment_complete(data: PaymentCompleteRequest, db: Session = Depends(get_db)
         ]
         send_order_confirmation(data.user_email, order.id, order.total, items_for_email)
     except Exception as e:
-        print(f"[payment/complete] ⚠️  Email failed: {e}")
+        logger.warning(f"[payment/complete] Email failed: {e}")
 
     return {
         "message":        "Payment successful",
@@ -1571,3 +1590,7 @@ def stripe_success_page(request: Request):
 @app.get("/stripe/cancel-page", response_class=HTMLResponse)
 def stripe_cancel_page(request: Request):
     return templates.TemplateResponse("stripe_cancel.html",   {"request": request})
+
+@app.get("/payment_success")
+async def payment_success_page():
+    return FileResponse("templates/payment_success.html")

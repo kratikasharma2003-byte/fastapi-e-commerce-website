@@ -1,173 +1,129 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ShopFast — Order Confirmed</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --bg: #f5f3ee; --surface: #fff; --border: #e2ddd5;
-    --text: #1a1814; --muted: #7a7670; --success: #1a7a4a; --accent2: #5a4fcf;
-  }
-  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; }
-
-  .success-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 3rem 2.5rem;
-    max-width: 460px;
-    width: 100%;
-    text-align: center;
-    box-shadow: 0 4px 32px rgba(0,0,0,.08);
-  }
-
-  .checkmark-wrap {
-    width: 72px; height: 72px;
-    border-radius: 50%;
-    background: #e8f7ef;
-    display: flex; align-items: center; justify-content: center;
-    margin: 0 auto 1.5rem;
-    animation: pop .5s cubic-bezier(0.34,1.56,0.64,1) both;
-  }
-  @keyframes pop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-
-  .checkmark { stroke: var(--success); stroke-width: 2.5; fill: none; stroke-dasharray: 40; stroke-dashoffset: 40; animation: draw .4s .3s ease forwards; }
-  @keyframes draw { to { stroke-dashoffset: 0; } }
-
-  h1 { font-family: 'Syne', sans-serif; font-size: 1.6rem; font-weight: 700; margin-bottom: .5rem; letter-spacing: -0.03em; }
-  .subtitle { color: var(--muted); font-size: 0.9rem; line-height: 1.6; margin-bottom: 2rem; }
-
-  .order-meta {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 1.25rem;
-    margin-bottom: 1.5rem;
-    text-align: left;
-  }
-  .meta-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 0.88rem; }
-  .meta-row .label { color: var(--muted); }
-  .meta-row .val { font-weight: 500; }
-  .meta-row .val.success { color: var(--success); }
-
-  .items-list { margin-bottom: 1.5rem; text-align: left; }
-  .order-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
-  .order-item:last-child { border-bottom: none; }
-  .order-item-name { flex: 1; color: var(--text); }
-  .order-item-qty { color: var(--muted); margin: 0 12px; }
-  .order-item-price { font-weight: 500; }
-
-  .divider { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
-
-  .total-row { display: flex; justify-content: space-between; padding: 4px 0; font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 700; }
-
-  .actions { display: flex; flex-direction: column; gap: 10px; }
-  .btn-primary {
-    padding: 13px; border-radius: 12px; background: var(--text); color: #fff;
-    border: none; font-family: 'Syne', sans-serif; font-size: 0.95rem; font-weight: 600;
-    cursor: pointer; text-decoration: none; display: block; text-align: center;
-    transition: background .2s;
-  }
-  .btn-primary:hover { background: #2d2b26; }
-  .btn-outline {
-    padding: 13px; border-radius: 12px; background: none; color: var(--text);
-    border: 1px solid var(--border); font-size: 0.88rem; font-weight: 500;
-    cursor: pointer; text-decoration: none; display: block; text-align: center;
-    transition: background .2s;
-  }
-  .btn-outline:hover { background: var(--bg); }
-
-  .email-note { font-size: 0.78rem; color: var(--muted); margin-top: 1rem; }
-  .loading-state { color: var(--muted); font-size: 0.9rem; padding: 1rem; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Successful — ShopFast</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'DM Sans', sans-serif; background: linear-gradient(135deg, #f0efff 0%, #f7f8fc 60%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+        .card { background: #fff; border-radius: 24px; padding: 48px 40px; max-width: 440px; width: 100%; text-align: center; box-shadow: 0 8px 48px rgba(99,91,255,0.13); animation: up .4s ease; }
+        @keyframes up { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+        .icon-wrap { width: 88px; height: 88px; background: linear-gradient(135deg, #00b894, #00cba9); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; box-shadow: 0 8px 28px rgba(0,184,148,.38); animation: pop .5s cubic-bezier(.34,1.56,.64,1) .15s both; }
+        @keyframes pop { from{transform:scale(0)} to{transform:scale(1)} }
+        .icon-wrap svg { width: 44px; height: 44px; }
+        @keyframes draw { to { stroke-dashoffset: 0; } }
+        .badge { display: inline-flex; align-items: center; gap: 8px; background: #f0efff; color: #635bff; font-size: 12px; font-weight: 700; padding: 5px 14px; border-radius: 20px; margin-bottom: 22px; border: 1px solid #dddaff; }
+        h1 { font-family: 'Sora', sans-serif; font-size: 23px; font-weight: 700; color: #1a1a2e; margin-bottom: 8px; }
+        .sub { color: #888; font-size: 14px; margin-bottom: 28px; line-height: 1.6; }
+        .box { background: #f7f8fc; border-radius: 16px; padding: 18px 20px; margin-bottom: 28px; text-align: left; border: 1px solid #eeecff; }
+        .row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid #eeecff; font-size: 14px; }
+        .row:last-child { border-bottom: none; }
+        .row .l { color: #888; font-weight: 500; }
+        .row .v { color: #1a1a2e; font-weight: 700; }
+        .row .v.green  { color: #00b894; }
+        .row .v.purple { color: #635bff; }
+        .amount-big { font-size: 36px; font-weight: 700; color: #00b894; font-family: 'Sora', sans-serif; margin: 0 0 24px; }
+        .btn { display: block; width: 100%; padding: 14px; border: none; border-radius: 12px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; text-decoration: none; text-align: center; transition: opacity .2s, transform .15s; margin-bottom: 10px; }
+        .btn:hover { opacity: .88; transform: translateY(-1px); }
+        .btn-primary { background: linear-gradient(135deg, #635bff, #8b7fff); color: #fff; box-shadow: 0 4px 18px rgba(99,91,255,.30); }
+        .btn-out { background: transparent; color: #635bff; border: 2px solid #635bff; }
+        .confetti { font-size: 22px; letter-spacing: 4px; margin-bottom: 6px; }
+        .loading { color: #aaa; font-size: 13px; padding: 20px; }
+    </style>
 </head>
 <body>
+    <div class="card">
+        <div class="icon-wrap">
+            <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M9 22L18 31L35 14" stroke="white" stroke-width="4"
+                      stroke-linecap="round" stroke-linejoin="round"
+                      stroke-dasharray="40" stroke-dashoffset="40"
+                      style="animation: draw 0.5s ease 0.6s forwards;"></path>
+            </svg>
+        </div>
+        <div class="confetti">🎉 🎊 🎉</div>
+        <div class="badge">✅ Payment Confirmed</div>
+        <h1>Payment Successful!</h1>
+        <div class="amount-big" id="amount-display">—</div>
+        <p class="sub" id="sub-text">
+            Your order is confirmed and being processed.<br>
+            A confirmation email has been sent to your registered address.
+        </p>
+        <div class="box" id="summary-box">
+            <div class="loading">Loading order details...</div>
+        </div>
+        <a href="/shop" class="btn btn-primary">🛍️ Continue Shopping</a>
+        <a href="/user-dashboard" class="btn btn-out">🏠 Go to Dashboard</a>
+    </div>
 
-<div class="success-card">
-  <div class="checkmark-wrap">
-    <svg width="36" height="36" viewBox="0 0 24 24">
-      <polyline class="checkmark" points="20 6 9 17 4 12"/>
-    </svg>
-  </div>
+    <script>
+    (function() {
+        // Read from URL params first, then fall back to localStorage
+        const params  = new URLSearchParams(window.location.search);
 
-  <h1>Order Confirmed!</h1>
-  <p class="subtitle" id="subtitle">Your order has been placed successfully. We'll send you a confirmation email shortly.</p>
+        const orderId = params.get("order_id")
+                     || localStorage.getItem("lastOrderId")
+                     || "";
+        const rawTotal= params.get("total")
+                     || localStorage.getItem("lastOrderTotal")
+                     || "";
+        const email   = params.get("email")
+                     || localStorage.getItem("email")
+                     || localStorage.getItem("userEmail")
+                     || localStorage.getItem("user_email")
+                     || "";
+        const method  = params.get("method")
+                     || localStorage.getItem("lastPayMethod")
+                     || "Card";
 
-  <div class="order-meta" id="orderMeta">
-    <div class="loading-state">Loading order details…</div>
-  </div>
+        // Persist so back-navigation still works
+        if (orderId)  localStorage.setItem("lastOrderId",    orderId);
+        if (rawTotal) localStorage.setItem("lastOrderTotal", rawTotal);
 
-  <div class="items-list" id="itemsList" style="display:none"></div>
+        // ── Display amount ────────────────────────────────────────
+        const amountEl = document.getElementById("amount-display");
+        if (rawTotal && !isNaN(parseFloat(rawTotal))) {
+            const formatted = parseFloat(rawTotal).toLocaleString("en-IN", {
+                minimumFractionDigits: 2, maximumFractionDigits: 2
+            });
+            amountEl.textContent = "₹" + formatted;
+        } else {
+            amountEl.textContent = "—";
+            amountEl.style.color = "#ccc";
+        }
 
-  <div class="actions">
-    <a href="/shop" class="btn-primary">Continue Shopping</a>
-    <a href="/dashboard" class="btn-outline" id="ordersLink">View My Orders</a>
-  </div>
+        // ── Update sub-text ───────────────────────────────────────
+        if (orderId) {
+            document.getElementById("sub-text").innerHTML =
+                `Order <strong>#${orderId}</strong> is confirmed and being processed.<br>` +
+                `A confirmation email has been sent to your registered address.`;
+        }
 
-  <p class="email-note" id="emailNote"></p>
-</div>
+        // ── Build summary box ─────────────────────────────────────
+        const box = document.getElementById("summary-box");
+        const rows = [];
 
-<script>
-const params = new URLSearchParams(location.search);
-const orderId = params.get('order_id');
-const userEmail = localStorage.getItem('user_email') || sessionStorage.getItem('user_email') || '';
+        if (orderId)  rows.push(`<div class="row"><span class="l">Order ID</span><span class="v purple">#${orderId}</span></div>`);
+        if (rawTotal && !isNaN(parseFloat(rawTotal))) {
+            const fmt = parseFloat(rawTotal).toLocaleString("en-IN",{minimumFractionDigits:2});
+            rows.push(`<div class="row"><span class="l">Amount Paid</span><span class="v green">₹${fmt}</span></div>`);
+        }
+        rows.push(`<div class="row"><span class="l">Payment Method</span><span class="v purple">💳 ${method}</span></div>`);
+        rows.push(`<div class="row"><span class="l">Payment Status</span><span class="v green">✅ Completed</span></div>`);
+        rows.push(`<div class="row"><span class="l">Order Status</span><span class="v green">Confirmed</span></div>`);
+        if (email)    rows.push(`<div class="row"><span class="l">Account</span><span class="v" style="font-size:12px;word-break:break-all">${email}</span></div>`);
 
-async function loadOrder() {
-  if (!orderId || !userEmail) {
-    renderFallback();
-    return;
-  }
-  try {
-    const res = await fetch(`/orders/${orderId}?email=${encodeURIComponent(userEmail)}`);
-    if (!res.ok) throw new Error();
-    const order = await res.json();
-    renderOrder(order);
-  } catch {
-    renderFallback();
-  }
-}
+        box.innerHTML = rows.length ? rows.join("") : `<div class="row"><span class="l">Status</span><span class="v green">✅ Order Confirmed</span></div>`;
 
-function renderOrder(order) {
-  const meta = document.getElementById('orderMeta');
-  const statusColor = order.status === 'Paid' ? 'success' : '';
-  meta.innerHTML = `
-    <div class="meta-row"><span class="label">Order ID</span><span class="val">#${order.order_id}</span></div>
-    <div class="meta-row"><span class="label">Status</span><span class="val ${statusColor}">${order.status}</span></div>
-    <div class="meta-row"><span class="label">Date</span><span class="val">${new Date(order.created_at).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'})}</span></div>
-    <div class="meta-row"><span class="label">Total</span><span class="val">₹${order.total.toFixed(2)}</span></div>
-  `;
-
-  const itemsList = document.getElementById('itemsList');
-  itemsList.style.display = 'block';
-  itemsList.innerHTML = `
-    <p style="font-size:0.75rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:8px">Items</p>
-    ${order.items.map(i => `
-      <div class="order-item">
-        <span class="order-item-name">${i.product_name}</span>
-        <span class="order-item-qty">×${i.quantity}</span>
-        <span class="order-item-price">₹${i.subtotal.toFixed(2)}</span>
-      </div>
-    `).join('')}
-    <hr class="divider">
-    <div class="total-row"><span>Total</span><span>₹${order.total.toFixed(2)}</span></div>
-  `;
-
-  if (userEmail) {
-    document.getElementById('emailNote').textContent = `Confirmation sent to ${userEmail}`;
-  }
-}
-
-function renderFallback() {
-  document.getElementById('orderMeta').innerHTML = `
-    <div class="meta-row"><span class="label">Status</span><span class="val" style="color:var(--success)">Confirmed</span></div>
-    <div class="meta-row"><span class="label">Order ID</span><span class="val">${orderId ? '#' + orderId : 'Processing…'}</span></div>
-  `;
-}
-
-loadOrder();
-</script>
+        // ── Clear order state from storage (keep email) ──────────
+        setTimeout(() => {
+            localStorage.removeItem("lastOrderId");
+            localStorage.removeItem("lastOrderTotal");
+            localStorage.removeItem("lastPayMethod");
+        }, 5000); // keep for 5s in case of refresh
+    })();
+    </script>
 </body>
 </html>

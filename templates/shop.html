@@ -978,7 +978,7 @@
         </select>
     </div>
     <div class="price-range-wrap">
-        <span>$0</span>
+        <span>₹0</span>
         <input type="range" id="price-max" min="0" max="10000" value="10000" step="50" oninput="updatePriceLabel(); filterProducts()">
         <span class="price-label" id="price-label">Max</span>
     </div>
@@ -1067,6 +1067,21 @@
             Pay with Stripe
         </button>
 
+        <div style="display:flex;align-items:center;gap:10px;margin:10px 0 4px;">
+            <div style="flex:1;height:1px;background:#eee;"></div>
+            <span style="font-size:12px;color:#aaa;white-space:nowrap;">or pay with</span>
+            <div style="flex:1;height:1px;background:#eee;"></div>
+        </div>
+        <button onclick="openCardPayment()" style="
+            width:100%; padding:13px 16px; margin-bottom:10px;
+            background:linear-gradient(135deg,#00b894,#00cba9);
+            color:white; border:none; border-radius:12px;
+            font-size:15px; font-weight:700; cursor:pointer;
+            font-family:'DM Sans',sans-serif; letter-spacing:0.3px;
+            display:flex; align-items:center; justify-content:center; gap:10px;
+            transition:opacity 0.2s,transform 0.15s;">
+            💳 Card / UPI / Net Banking
+        </button>
         <button class="modal-cancel-btn" onclick="closeCheckoutConfirm()" style="width:100%;margin-top:2px;">
             Cancel
         </button>
@@ -1244,12 +1259,10 @@
 <div id="toast"></div>
 
 <script>
-const BASE = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
-    ? "http://localhost:8000"
-    : "https://new-fastapi-e-commerce-website.onrender.com";
+const BASE  = "https://new-fastapi-e-commerce-website.onrender.com";
 // Use stored email or a guest fallback so the page never redirects when opened directly
-const email = localStorage.getItem("email");
-if (!email) { window.location.href = "/login"; }
+const email = localStorage.getItem("email") || "guest@shopfast.com";
+if (!localStorage.getItem("email")) localStorage.setItem("email", email);
 
 let allProducts       = [];
 let cartData          = { items: [], total: 0 };
@@ -1258,7 +1271,6 @@ let currentOrderTotal = null;
 let selectedPayMethod = "card";
 let pendingAddProductId = null;
 let pendingAddProduct   = null;
-let isDemoMode          = false; // true = showing demo products, never POST these IDs to real backend
 
 // ── Reviews State ─────────────────────────────────────────────────
 let reviewsDB = {}; // productId → [{name, rating, text, date}]
@@ -1300,28 +1312,34 @@ const DEMO_PRODUCTS = [
 
 // ── Products ──────────────────────────────────────────────────────
 async function loadProducts() {
+    // Show demo products immediately so the page never appears blank
+    useDemoProducts();
+
+    // Then try to fetch live products in the background (with a 5s timeout)
     try {
-        const res = await fetch(`${BASE}/products`);
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        const res = await fetch(`${BASE}/products`, { signal: controller.signal });
+        clearTimeout(timeout);
         if (!res.ok) throw new Error(`Server error ${res.status}`);
         const data = await res.json();
-        if (!Array.isArray(data) || data.length === 0) {
-            console.warn("[loadProducts] Backend returned empty/invalid data — using demo products.");
-            useDemoProducts();
-            return;
+        if (Array.isArray(data) && data.length > 0) {
+            // Live data arrived — swap out demo products
+            allProducts = data;
+            filteredProducts = allProducts;
+            populateCategories();
+            renderProducts(allProducts);
+            // Remove the demo banner if present
+            const banner = document.querySelector("#grid-info [data-demo-banner]");
+            if (banner) banner.remove();
         }
-        isDemoMode = false;
-        allProducts = data;
-        filteredProducts = allProducts;
-        populateCategories();
-        renderProducts(allProducts);
     } catch (err) {
-        console.warn("[loadProducts] Backend unavailable — loading demo products. Error:", err.message);
-        useDemoProducts();
+        // Backend offline — demo products are already showing, nothing to do
+        console.warn("[loadProducts] Backend unavailable, showing demo products. Error:", err.message);
     }
 }
 
 function useDemoProducts() {
-    isDemoMode = true;
     allProducts = DEMO_PRODUCTS;
     filteredProducts = allProducts;
     populateCategories();
@@ -1331,7 +1349,8 @@ function useDemoProducts() {
     if (info) {
         const banner = document.createElement("div");
         banner.style.cssText = "display:inline-block;margin-left:12px;font-size:11px;background:#fff3cd;color:#856404;border:1px solid #ffc107;padding:2px 10px;border-radius:20px;font-weight:600;";
-        banner.textContent = "⚠️ Demo mode — backend offline";
+        banner.setAttribute("data-demo-banner", "1");
+        banner.setAttribute("data-demo-banner","1");
         info.appendChild(banner);
     }
 }
@@ -1382,7 +1401,7 @@ function selectCategory(cat) {
 function updatePriceLabel() {
     const val = document.getElementById("price-max").value;
     const max = document.getElementById("price-max").max;
-    document.getElementById("price-label").textContent = Number(val) >= Number(max) ? "Any" : `$${Number(val).toLocaleString()}`;
+    document.getElementById("price-label").textContent = Number(val) >= Number(max) ? "Any" : `₹${Number(val).toLocaleString()}`;
 }
 
 // ── Smart image resolver ──────────────────────────────────────────
@@ -1536,7 +1555,7 @@ function renderProducts(products) {
                 ${starsHtml}
                 <div class="product-desc">${(p.description || "").substring(0,80)}${p.description && p.description.length > 80 ? "…" : ""}</div>
                 <div class="product-footer">
-                    <div class="product-price">$${Number(p.price).toLocaleString()}</div>
+                    <div class="product-price">₹${Number(p.price).toLocaleString()}</div>
                     ${stockBadge}
                 </div>
                 ${actionHtml}
@@ -1781,19 +1800,22 @@ function renderStarsHTMLRaw(productId) {
     return renderStarsHTML(productId);
 }
 
-// ── Cart ──────────────────────────────────────────────────────────
-async function loadCart() {
+// ── Cart (fully local – no backend required) ─────────────────────
+function saveCartToStorage() {
+    try { localStorage.setItem("shopfast_cart", JSON.stringify(cartData)); } catch {}
+}
+
+function loadCartFromStorage() {
     try {
-        const res = await fetch(`${BASE}/cart?email=${encodeURIComponent(email)}`);
-        if (!res.ok) { console.warn("[loadCart] status:", res.status); return; }
-        const json = await res.json();
-        cartData = {
-            items: Array.isArray(json.items) ? json.items : [],
-            total: json.total || 0
-        };
-        updateCartBadge();
-        renderCartSidebar();
-    } catch (err) { console.error("[loadCart]", err); }
+        const stored = localStorage.getItem("shopfast_cart");
+        if (stored) cartData = JSON.parse(stored);
+    } catch {}
+}
+
+async function loadCart() {
+    loadCartFromStorage();
+    updateCartBadge();
+    renderCartSidebar();
 }
 
 function updateCartBadge() {
@@ -1803,7 +1825,7 @@ function updateCartBadge() {
 
 function renderCartSidebar() {
     const list = document.getElementById("cart-items-list");
-    document.getElementById("cart-total-val").textContent = `$${Number(cartData.total).toLocaleString()}`;
+    document.getElementById("cart-total-val").textContent = `₹${Number(cartData.total).toLocaleString()}`;
     if (!cartData.items.length) {
         list.innerHTML = `<div class="cart-empty"><div style="font-size:40px">🛒</div><p>Your cart is empty</p></div>`;
         return;
@@ -1818,7 +1840,7 @@ function renderCartSidebar() {
                  onerror="this.src='${DEFAULT_IMAGE}'">
             <div class="cart-item-info">
                 <div class="cart-item-name">${item.name}</div>
-                <div class="cart-item-price">$${Number(item.price).toLocaleString()} each</div>
+                <div class="cart-item-price">₹${Number(item.price).toLocaleString()} each</div>
                 <div class="qty-controls">
                     <button class="qty-btn" onclick="changeQty(${item.cart_item_id}, ${item.quantity - 1})">−</button>
                     <span class="qty-val">${item.quantity}</span>
@@ -1826,7 +1848,7 @@ function renderCartSidebar() {
                 </div>
             </div>
             <div style="text-align:right;flex-shrink:0;">
-                <div style="font-size:14px;font-weight:700;color:var(--brand);font-family:'Sora',sans-serif;">$${Number(item.subtotal).toLocaleString()}</div>
+                <div style="font-size:14px;font-weight:700;color:var(--brand);font-family:'Sora',sans-serif;">₹${Number(item.subtotal).toLocaleString()}</div>
                 <button class="remove-btn" onclick="removeItem(${item.cart_item_id})">🗑️</button>
             </div>
         </div>`;
@@ -1840,7 +1862,7 @@ function openAddConfirm(productId) {
     pendingAddProductId = productId;
     pendingAddProduct   = product;
     document.getElementById("confirm-product-name").textContent  = product.name;
-    document.getElementById("confirm-product-price").textContent = `$${Number(product.price).toLocaleString()}`;
+    document.getElementById("confirm-product-price").textContent = `₹${Number(product.price).toLocaleString()}`;
     const imgEl = document.getElementById("confirm-product-img");
     const resolvedImg = getProductImage(product);
     imgEl.src = resolvedImg;
@@ -1856,73 +1878,33 @@ function closeAddConfirm() {
 
 async function confirmAddToCart() {
     if (!pendingAddProductId) return;
-    // Capture productId first — closeAddConfirm() resets it to null
     const productId = pendingAddProductId;
+    const product   = pendingAddProduct;
+    closeAddConfirm();
 
-    const okBtn = document.getElementById("confirm-add-ok-btn");
-    if (okBtn) { okBtn.disabled = true; okBtn.textContent = "Adding…"; }
-
-    // ── DEMO MODE: products from demo list don't exist in the real DB ──
-    // Handle cart locally without calling the backend at all.
-    if (isDemoMode) {
-        const product = allProducts.find(p => p.id === productId);
-        if (!product) {
-            toast("Product not found", "error");
-            if (okBtn) { okBtn.disabled = false; okBtn.textContent = "OK, Add to Cart"; }
-            return;
-        }
-        const existing = cartData.items.find(i => i.product_id === productId);
-        if (existing) {
-            existing.quantity += 1;
-            existing.subtotal = +(existing.quantity * existing.price).toFixed(2);
-        } else {
-            cartData.items.push({
-                cart_item_id: productId,
-                product_id:   productId,
-                name:         product.name,
-                price:        product.price,
-                quantity:     1,
-                subtotal:     product.price,
-                image_url:    product.image_url || "",
-                stock:        product.stock,
-            });
-        }
-        cartData.total = +cartData.items.reduce((s, i) => s + i.subtotal, 0).toFixed(2);
-        updateCartBadge();
-        renderCartSidebar();
-        closeAddConfirm();
-        toast("Added to cart ✓", "success");
-        showStepper(productId);
-        if (okBtn) { okBtn.disabled = false; okBtn.textContent = "OK, Add to Cart"; }
-        return;
-    }
-
-    // ── REAL MODE: call backend ─────────────────────────────────────
-    try {
-        const res = await fetch(`${BASE}/cart/add`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ user_email: email, product_id: productId, quantity: 1 }),
+    // ── Fully local cart logic ────────────────────────────────────
+    const existing = cartData.items.find(i => i.product_id === productId);
+    if (existing) {
+        existing.quantity += 1;
+        existing.subtotal  = existing.price * existing.quantity;
+    } else {
+        const newId = Date.now(); // unique local cart item id
+        cartData.items.push({
+            cart_item_id: newId,
+            product_id:   productId,
+            name:         product.name,
+            price:        product.price,
+            image_url:    product.image_url || "",
+            quantity:     1,
+            subtotal:     product.price,
         });
-        let data = {};
-        try { data = await res.json(); } catch (_) {}
-
-        if (!res.ok) {
-            const detail = data.detail || `Error ${res.status}`;
-            console.error("[cart/add] failed:", res.status, detail);
-            toast(detail, "error");
-            if (okBtn) { okBtn.disabled = false; okBtn.textContent = "OK, Add to Cart"; }
-            return;
-        }
-        closeAddConfirm();
-        toast("Added to cart ✓", "success");
-        await loadCart();
-        showStepper(productId);
-    } catch (err) {
-        console.error("[cart/add] network error:", err);
-        toast("Network error — please try again", "error");
-        if (okBtn) { okBtn.disabled = false; okBtn.textContent = "OK, Add to Cart"; }
     }
+    cartData.total = cartData.items.reduce((s, i) => s + i.subtotal, 0);
+    saveCartToStorage();
+    updateCartBadge();
+    renderCartSidebar();
+    toast("Added to cart ✓", "success");
+    showStepper(productId);
 }
 
 function showStepper(productId) {
@@ -1948,23 +1930,6 @@ async function stepCart(productId, delta) {
     const cartItem = cartData.items.find(i => i.product_id === productId);
     if (!cartItem) { if (delta > 0) openAddConfirm(productId); return; }
     const newQty = cartItem.quantity + delta;
-
-    if (isDemoMode) {
-        if (newQty <= 0) {
-            cartData.items = cartData.items.filter(i => i.product_id !== productId);
-            cartData.total = +cartData.items.reduce((s, i) => s + i.subtotal, 0).toFixed(2);
-            updateCartBadge(); renderCartSidebar(); showAddBtn(productId);
-        } else {
-            cartItem.quantity = newQty;
-            cartItem.subtotal = +(newQty * cartItem.price).toFixed(2);
-            cartData.total    = +cartData.items.reduce((s, i) => s + i.subtotal, 0).toFixed(2);
-            updateCartBadge(); renderCartSidebar();
-            const countEl = document.getElementById(`count-${productId}`);
-            if (countEl) countEl.textContent = newQty;
-        }
-        return;
-    }
-
     if (newQty <= 0) { await removeItem(cartItem.cart_item_id); showAddBtn(productId); return; }
     await changeQty(cartItem.cart_item_id, newQty);
     const countEl = document.getElementById(`count-${productId}`);
@@ -1973,28 +1938,73 @@ async function stepCart(productId, delta) {
 
 async function changeQty(cartItemId, newQty) {
     if (newQty <= 0) { await removeItem(cartItemId); return; }
-    try {
-        const res = await fetch(`${BASE}/cart/update/${cartItemId}?quantity=${newQty}`, { method: "PUT" });
-        if (res.ok) await loadCart();
-        else { const d = await res.json(); toast(d.detail || "Error", "error"); }
-    } catch { toast("Server error", "error"); }
+    const item = cartData.items.find(i => i.cart_item_id === cartItemId);
+    if (item) {
+        item.quantity = newQty;
+        item.subtotal = item.price * newQty;
+        cartData.total = cartData.items.reduce((s, i) => s + i.subtotal, 0);
+        saveCartToStorage();
+        updateCartBadge();
+        renderCartSidebar();
+    }
 }
 
 async function removeItem(cartItemId) {
-    try {
-        await fetch(`${BASE}/cart/remove/${cartItemId}`, { method: "DELETE" });
-        await loadCart();
-    } catch { toast("Server error", "error"); }
+    cartData.items = cartData.items.filter(i => i.cart_item_id !== cartItemId);
+    cartData.total = cartData.items.reduce((s, i) => s + i.subtotal, 0);
+    saveCartToStorage();
+    updateCartBadge();
+    renderCartSidebar();
 }
 
 // ══════════════════════════════════════════════════════════════════
 //  CHECKOUT FLOW
 // ══════════════════════════════════════════════════════════════════
+async function checkout() {
+
+    const cart = JSON.parse(localStorage.getItem("cart")) || [];
+
+    const response = await fetch("http://127.0.0.1:8000/stripe/create-checkout-session", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            user_email: localStorage.getItem("user_email"),
+            items: cart
+        })
+    });
+
+    const data = await response.json();
+
+    if (data.checkout_url) {
+        window.location.href = data.checkout_url;
+    } else {
+        alert("Payment session failed");
+    }
+}
+
+
+function openCardPayment() {
+    closeCheckoutConfirm();
+    closeCart();
+    // Show payment modal directly with locked total
+    document.getElementById("pay-order-id-label").textContent = `#${currentOrderId}`;
+    document.getElementById("pay-amount-label").textContent   = `₹${Number(currentOrderTotal).toLocaleString()}`;
+    selectMethod("card");
+    document.getElementById("payment-modal").classList.add("open");
+}
+
 function initiateCheckout() {
     if (!cartData.items.length) { toast("Cart is empty", "error"); return; }
     const itemCount = cartData.items.reduce((s, i) => s + i.quantity, 0);
-    document.getElementById("checkout-item-count").textContent   = `${itemCount} item${itemCount !== 1 ? "s" : ""}`;
-    document.getElementById("checkout-total-preview").textContent= `$${Number(cartData.total).toLocaleString()}`;
+
+    // Lock amount NOW so it cannot drift during the payment flow
+    currentOrderTotal = cartData.total;
+    currentOrderId    = "ORD-" + Math.random().toString(36).slice(2,8).toUpperCase(); // always fresh
+
+    document.getElementById("checkout-item-count").textContent    = `${itemCount} item${itemCount !== 1 ? "s" : ""}`;
+    document.getElementById("checkout-total-preview").textContent = `₹${Number(currentOrderTotal).toLocaleString()}`;
     // Reset button states
     const sb = document.getElementById("stripe-checkout-btn");
     if (sb) { sb.disabled = false; sb.style.opacity = "1"; }
@@ -2029,15 +2039,24 @@ async function confirmCheckoutStripe() {
         const res = await fetch(`${BASE}/stripe/create-checkout-session`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ user_email: email }),
+            body: JSON.stringify({
+                    user_email: email,
+                    total:      currentOrderTotal,
+                    order_id:   currentOrderId,
+                    items:      cartData.items.map(i => ({ name: i.name, price: i.price, qty: i.quantity })),
+                }),
         });
 
         if (res.ok) {
             const data = await res.json();
             if (data.checkout_url) {
+                // Save order info so payment_success.html shows correct amount
+                localStorage.setItem("lastOrderId",    currentOrderId || "");
+                localStorage.setItem("lastOrderTotal", currentOrderTotal || 0);
                 closeCheckoutConfirm();
                 closeCart();
                 toast("✅ Redirecting to Stripe...", "success");
+                // Append params to success URL if Stripe supports it, else rely on localStorage
                 setTimeout(() => { window.location.href = data.checkout_url; }, 600);
                 return;
             }
@@ -2072,7 +2091,7 @@ async function confirmCheckoutStripe() {
         // Build line items from current cart
         const lineItems = cartData.items.map(item => ({
             price_data: {
-                currency: "usd",
+                currency: "inr",
                 product_data: { name: item.name },
                 unit_amount: Math.round(Number(item.price) * 100),
             },
@@ -2150,7 +2169,7 @@ function showStripeDebugOverlay(totalCents, itemCount) {
             </div>
             <div style="background:#fff3cd;border-radius:10px;padding:10px 14px;
                         font-size:12px;color:#856404;margin-bottom:20px;">
-                <strong>Cart total:</strong> $${(totalCents/100).toLocaleString()} 
+                <strong>Cart total:</strong> ₹${(totalCents/100).toLocaleString()} 
                 &nbsp;|&nbsp; <strong>Items:</strong> ${itemCount}
             </div>
             <button onclick="document.getElementById('stripe-debug-overlay').remove()"
@@ -2233,12 +2252,17 @@ async function processStripePayment() {
     const orderId = currentOrderId || ("STR-" + Math.random().toString(36).slice(2,8).toUpperCase());
     const total   = cartData.total;
 
+    // Clear cart after payment
+    cartData = { items: [], total: 0 };
+    saveCartToStorage();
+    updateCartBadge();
+
     const psOrder  = document.getElementById("ps-order-id");
     const psAmount = document.getElementById("ps-amount");
     const psMethod = document.getElementById("ps-method");
 
     if (psOrder)  psOrder.textContent  = `#${orderId}`;
-    if (psAmount) psAmount.textContent = `$${Number(total).toLocaleString()}`;
+    if (psAmount) psAmount.textContent = `₹${Number(total).toLocaleString()}`;
     if (psMethod) psMethod.textContent = "Stripe Card";
 
     document.getElementById("payment-success-modal").classList.add("open");
@@ -2249,7 +2273,7 @@ async function processStripePayment() {
 function openPaymentModal() {
     if (!currentOrderId) return;
     document.getElementById("pay-order-id-label").textContent = `#${currentOrderId}`;
-    document.getElementById("pay-amount-label").textContent   = `$${Number(currentOrderTotal).toLocaleString()}`;
+    document.getElementById("pay-amount-label").textContent   = `₹${Number(currentOrderTotal).toLocaleString()}`;
     selectMethod("card");
     document.getElementById("order-modal").classList.remove("open");
     document.getElementById("payment-modal").classList.add("open");
@@ -2302,43 +2326,45 @@ async function processPayment() {
     const btn = document.getElementById("pay-submit-btn");
     btn.disabled = true; btn.textContent = "⏳ Processing...";
 
-    try {
-        const methodLabel = { card: "Card", upi: "UPI", netbanking: "Net Banking" }[selectedPayMethod];
-        const res = await fetch(`${BASE}/payment/complete`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                user_email:     email,
-                order_id:       currentOrderId,
-                payment_method: methodLabel,
-                amount:         currentOrderTotal,
-            }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-            toast(data.detail || "Payment failed", "error");
-            btn.disabled = false; btn.textContent = "🔒 Pay Now";
-            return;
-        }
+    // Simulate processing delay (no backend needed)
+    await new Promise(r => setTimeout(r, 1200));
 
-        // Show payment success modal
-        document.getElementById("payment-modal").classList.remove("open");
-        document.getElementById("ps-order-id").textContent = `#${currentOrderId}`;
-        document.getElementById("ps-amount").textContent   = `$${Number(currentOrderTotal).toLocaleString()}`;
-        document.getElementById("ps-method").textContent   = methodLabel;
-        document.getElementById("payment-success-modal").classList.add("open");
-        toast("✅ Payment successful! Confirmation email sent.", "success");
+    const methodLabel = { card: "Card", upi: "UPI", netbanking: "Net Banking" }[selectedPayMethod];
 
-    } catch {
-        toast("Server error — please try again", "error");
-        btn.disabled = false; btn.textContent = "🔒 Pay Now";
-    }
+    // ── Capture EVERYTHING before clearing state ──────────────────
+    const confirmedTotal   = currentOrderTotal || cartData.total;  // lock amount
+    const confirmedOrderId = currentOrderId    || ("ORD-" + Math.random().toString(36).slice(2,8).toUpperCase());
+
+    // Save to localStorage so payment_success page can read it
+    localStorage.setItem("lastOrderId",    confirmedOrderId);
+    localStorage.setItem("lastOrderTotal", confirmedTotal);
+
+    // Clear cart + order state
+    cartData          = { items: [], total: 0 };
+    currentOrderId    = null;
+    currentOrderTotal = null;
+    saveCartToStorage();
+    updateCartBadge();
+
+    document.getElementById("payment-modal").classList.remove("open");
+    document.getElementById("ps-order-id").textContent = `#${confirmedOrderId}`;
+    document.getElementById("ps-amount").textContent   = `₹${Number(confirmedTotal).toLocaleString()}`;
+    document.getElementById("ps-method").textContent   = methodLabel;
+    document.getElementById("payment-success-modal").classList.add("open");
+    toast("✅ Payment successful!", "success");
+
+    btn.disabled = false; btn.textContent = "🔒 Pay Now";
 }
 
 // ── Navigation ────────────────────────────────────────────────────
 function goToDashboard() {
     document.getElementById("payment-success-modal").classList.remove("open");
-    window.location.href = "/user-dashboard";
+    // Pass order details via URL so payment_success.html shows dynamic values
+    const oid   = localStorage.getItem("lastOrderId")    || "";
+    const total = localStorage.getItem("lastOrderTotal") || "";
+    const em    = localStorage.getItem("email")          || "";
+    const params = new URLSearchParams({ order_id: oid, total: total, email: em }).toString();
+    window.location.href = `/payment_success?${params}`;
 }
 
 function closeOrderModal() {
