@@ -7,151 +7,70 @@
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: 'DM Sans', sans-serif;
-            background: linear-gradient(135deg, #fff8f0 0%, #f7f8fc 60%);
-            min-height: 100vh;
-            display: flex; align-items: center; justify-content: center;
-            padding: 24px;
-        }
-        .card {
-            background: #fff; border-radius: 24px; padding: 48px 40px;
-            max-width: 440px; width: 100%; text-align: center;
-            box-shadow: 0 8px 40px rgba(0,0,0,0.08);
-            animation: up .4s ease;
-        }
-        @keyframes up { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
-
-        .icon-wrap {
-            width: 88px; height: 88px;
-            background: linear-gradient(135deg, #f39c12, #e67e22);
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            margin: 0 auto 24px;
-            box-shadow: 0 8px 24px rgba(243,156,18,.32);
-            animation: pop .5s cubic-bezier(.34,1.56,.64,1) .2s both;
-            font-size: 38px;
-        }
-        @keyframes pop { from{transform:scale(0)} to{transform:scale(1)} }
-
-        /* Reason badge */
-        .reason-badge {
-            display: inline-block;
-            background: #fff3cd;
-            color: #856404;
-            font-size: 12px; font-weight: 700;
-            padding: 5px 14px; border-radius: 20px;
-            margin-bottom: 20px;
-            border: 1px solid #ffc10750;
-        }
-
-        h1 {
-            font-family: 'Sora', sans-serif;
-            font-size: 22px; font-weight: 700;
-            color: #1a1a2e; margin-bottom: 8px;
-        }
-        .sub { color: #888; font-size: 14px; margin-bottom: 28px; line-height: 1.6; }
-
-        .box {
-            background: #fff8f0;
-            border: 1px solid #fde8c8;
-            border-radius: 16px; padding: 18px 20px;
-            margin-bottom: 28px; text-align: left;
-        }
-        .row {
-            display: flex; justify-content: space-between;
-            padding: 9px 0; border-bottom: 1px solid #fde8c8;
-            font-size: 14px;
-        }
-        .row:last-child { border-bottom: none; }
-        .row .l { color: #888; font-weight: 500; }
-        .row .v { color: #1a1a2e; font-weight: 700; }
-        .row .v.orange { color: #f39c12; }
-
-        .btn {
-            display: block; width: 100%; padding: 14px; border: none;
-            border-radius: 12px; font-family: 'DM Sans', sans-serif;
-            font-size: 15px; font-weight: 700; cursor: pointer;
-            text-decoration: none; text-align: center;
-            transition: opacity .2s, transform .15s; margin-bottom: 10px;
-        }
-        .btn:hover { opacity: .88; transform: translateY(-1px); }
-        .btn-stripe {
-            background: linear-gradient(135deg, #635bff, #8b7fff);
-            color: #fff;
-            box-shadow: 0 4px 16px rgba(99,91,255,.28);
-        }
-        .btn-out {
-            background: transparent; color: #888;
-            border: 2px solid #e8eaf0; font-weight: 600;
-        }
-
-        .note {
-            font-size: 12px; color: #888;
-            margin-top: 16px; line-height: 1.6;
-            background: #f7f8fc;
-            border-radius: 10px; padding: 12px 16px;
-        }
+        body { font-family:'DM Sans',sans-serif; background:linear-gradient(135deg,#fff5f5 0%,#f7f8fc 60%); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+        .card { background:#fff; border-radius:24px; padding:48px 40px; max-width:440px; width:100%; text-align:center; box-shadow:0 8px 48px rgba(214,48,49,0.10); animation:slideUp .4s ease; }
+        @keyframes slideUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+        .icon-wrap { width:88px; height:88px; background:linear-gradient(135deg,#d63031,#e17055); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 24px; box-shadow:0 8px 28px rgba(214,48,49,.28); animation:popIn .5s cubic-bezier(.34,1.56,.64,1) .15s both; }
+        @keyframes popIn { from{transform:scale(0)} to{transform:scale(1)} }
+        .icon-wrap svg { width:44px; height:44px; }
+        h1 { font-family:'Sora',sans-serif; font-size:24px; font-weight:700; color:#1a1a2e; margin-bottom:8px; }
+        .sub { color:#888; font-size:14px; margin-bottom:28px; line-height:1.7; }
+        .reason-box { background:#fff5f5; border:1px solid #ffd5d5; border-radius:12px; padding:14px 18px; margin-bottom:24px; font-size:13px; color:#c0392b; display:none; }
+        .reason-box.show { display:block; }
+        .btn { display:block; width:100%; padding:14px; border:none; border-radius:12px; font-family:'DM Sans',sans-serif; font-size:15px; font-weight:700; cursor:pointer; text-decoration:none; text-align:center; transition:opacity .2s,transform .15s; margin-bottom:10px; }
+        .btn:hover { opacity:.88; transform:translateY(-1px); }
+        .btn-primary { background:linear-gradient(135deg,#635bff,#8b7fff); color:#fff; box-shadow:0 4px 18px rgba(99,91,255,.30); }
+        .btn-outline { background:transparent; color:#635bff; border:2px solid #635bff; }
+        .btn-danger  { background:linear-gradient(135deg,#d63031,#e17055); color:#fff; box-shadow:0 4px 18px rgba(214,48,49,.25); }
     </style>
 </head>
 <body>
-    <div class="card">
-        <div class="icon-wrap">✕</div>
+<div class="card">
+    <div class="icon-wrap">
+        <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M13 13L31 31M31 13L13 31" stroke="white" stroke-width="4" stroke-linecap="round"/>
+        </svg>
+    </div>
+    <h1>Payment Cancelled</h1>
+    <p class="sub" id="sub-text">
+        Your payment was not completed. Your order has been saved and your cart is still intact.
+        You can try again anytime.
+    </p>
 
-        <div class="reason-badge" id="reason-badge">⚠️ Payment Cancelled</div>
-
-        <h1>Payment Cancelled</h1>
-        <p class="sub" id="cancel-msg">
-            You cancelled the Stripe payment. No charge was made.<br>
-            Your cart items are still saved — you can try again anytime.
-        </p>
-
-        <div class="box">
-            <div class="row">
-                <span class="l">Payment Status</span>
-                <span class="v orange">⚠️ Cancelled</span>
-            </div>
-            <div class="row">
-                <span class="l">Payment Method</span>
-                <span class="v">💳 Stripe</span>
-            </div>
-            <div class="row">
-                <span class="l">Actual Charge</span>
-                <span class="v">$0 — Nothing deducted</span>
-            </div>
-            <div class="row">
-                <span class="l">Cart Items</span>
-                <span class="v">Still saved ✓</span>
-            </div>
-        </div>
-
-        <a href="/shop" class="btn btn-stripe">↩ Return to Shop &amp; Try Again</a>
-        <a href="/user-dashboard" class="btn btn-out">Go to Dashboard</a>
-
-        <p class="note">
-            💡 Your card was <strong>not charged</strong>. You can safely retry
-            the payment from the shop at any time.
-        </p>
+    <!-- Reason box (shown when server provides a reason) -->
+    <div class="reason-box" id="reason-box">
+        <!-- filled by JS -->
     </div>
 
-    <script>
-        // Show a friendlier message based on the ?reason= query param
-        const reason = new URLSearchParams(window.location.search).get("reason");
-        const badge  = document.getElementById("reason-badge");
-        const msg    = document.getElementById("cancel-msg");
+    <button class="btn btn-danger" onclick="retryPayment()">🔄 Try Again</button>
+    <a href="/cart-page" class="btn btn-primary">🛒 Return to Cart</a>
+    <a href="/shop"      class="btn btn-outline">🛍️ Continue Shopping</a>
+</div>
 
-        const reasons = {
-            session_lost:   ["⚠️ Session Expired",     "Your session expired before payment was confirmed. No charge was made. Please log in and try again."],
-            order_not_found:["⚠️ Order Not Found",     "We could not locate your order. No charge was made. Please contact support if this persists."],
-            not_paid:       ["⚠️ Payment Incomplete",  "Stripe reported the payment was not completed. No charge was made. Please try again."],
-            stripe_error:   ["⚠️ Stripe Error",        "There was an error verifying your payment with Stripe. No charge was made. Please try again."],
-            db_error:       ["⚠️ Server Error",        "We had trouble saving your order after payment. Please contact support with your order details."],
-        };
+<script>
+    // Reason injected by Jinja2 (from FastAPI /stripe/cancel-page?reason=...)
+    const SERVER_REASON = "{{ reason if reason else '' }}";
 
-        if (reason && reasons[reason]) {
-            badge.textContent = reasons[reason][0];
-            msg.innerHTML     = reasons[reason][1];
-        }
-    </script>
+    const params       = new URLSearchParams(window.location.search);
+    const reason       = SERVER_REASON || params.get("reason") || "";
+
+    const REASON_LABELS = {
+        "stripe_error":    "There was a problem connecting to Stripe. Please try again.",
+        "not_paid":        "The payment was not completed. Please try again.",
+        "missing_order_id":"Your session expired. Please place your order again.",
+        "order_not_found": "Your order could not be found. Please contact support.",
+        "db_error":        "A server error occurred. Your payment may not have been processed.",
+    };
+
+    if (reason) {
+        const box = document.getElementById("reason-box");
+        box.textContent = "ℹ️  " + (REASON_LABELS[reason] || `Error: ${reason}`);
+        box.classList.add("show");
+    }
+
+    function retryPayment() {
+        window.location.href = "/shop";
+    }
+</script>
 </body>
 </html>

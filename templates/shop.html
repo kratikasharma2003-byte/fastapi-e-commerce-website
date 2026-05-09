@@ -978,7 +978,7 @@
         </select>
     </div>
     <div class="price-range-wrap">
-        <span>₹0</span>
+        <span>$0</span>
         <input type="range" id="price-max" min="0" max="10000" value="10000" step="50" oninput="updatePriceLabel(); filterProducts()">
         <span class="price-label" id="price-label">Max</span>
     </div>
@@ -1067,21 +1067,6 @@
             Pay with Stripe
         </button>
 
-        <div style="display:flex;align-items:center;gap:10px;margin:10px 0 4px;">
-            <div style="flex:1;height:1px;background:#eee;"></div>
-            <span style="font-size:12px;color:#aaa;white-space:nowrap;">or pay with</span>
-            <div style="flex:1;height:1px;background:#eee;"></div>
-        </div>
-        <button onclick="openCardPayment()" style="
-            width:100%; padding:13px 16px; margin-bottom:10px;
-            background:linear-gradient(135deg,#00b894,#00cba9);
-            color:white; border:none; border-radius:12px;
-            font-size:15px; font-weight:700; cursor:pointer;
-            font-family:'DM Sans',sans-serif; letter-spacing:0.3px;
-            display:flex; align-items:center; justify-content:center; gap:10px;
-            transition:opacity 0.2s,transform 0.15s;">
-            💳 Card / UPI / Net Banking
-        </button>
         <button class="modal-cancel-btn" onclick="closeCheckoutConfirm()" style="width:100%;margin-top:2px;">
             Cancel
         </button>
@@ -1259,7 +1244,7 @@
 <div id="toast"></div>
 
 <script>
-const BASE  = "https://new-fastapi-e-commerce-website.onrender.com";
+const BASE = window.location.origin;  // auto-detects: works on Render AND localhost
 // Use stored email or a guest fallback so the page never redirects when opened directly
 const email = localStorage.getItem("email") || "guest@shopfast.com";
 if (!localStorage.getItem("email")) localStorage.setItem("email", email);
@@ -1351,6 +1336,7 @@ function useDemoProducts() {
         banner.style.cssText = "display:inline-block;margin-left:12px;font-size:11px;background:#fff3cd;color:#856404;border:1px solid #ffc107;padding:2px 10px;border-radius:20px;font-weight:600;";
         banner.setAttribute("data-demo-banner", "1");
         banner.setAttribute("data-demo-banner","1");
+        banner.textContent = "⚠️ Demo mode — backend offline";
         info.appendChild(banner);
     }
 }
@@ -1401,7 +1387,7 @@ function selectCategory(cat) {
 function updatePriceLabel() {
     const val = document.getElementById("price-max").value;
     const max = document.getElementById("price-max").max;
-    document.getElementById("price-label").textContent = Number(val) >= Number(max) ? "Any" : `₹${Number(val).toLocaleString()}`;
+    document.getElementById("price-label").textContent = Number(val) >= Number(max) ? "Any" : `$${Number(val).toLocaleString()}`;
 }
 
 // ── Smart image resolver ──────────────────────────────────────────
@@ -1555,7 +1541,7 @@ function renderProducts(products) {
                 ${starsHtml}
                 <div class="product-desc">${(p.description || "").substring(0,80)}${p.description && p.description.length > 80 ? "…" : ""}</div>
                 <div class="product-footer">
-                    <div class="product-price">₹${Number(p.price).toLocaleString()}</div>
+                    <div class="product-price">$${Number(p.price).toLocaleString()}</div>
                     ${stockBadge}
                 </div>
                 ${actionHtml}
@@ -1825,7 +1811,7 @@ function updateCartBadge() {
 
 function renderCartSidebar() {
     const list = document.getElementById("cart-items-list");
-    document.getElementById("cart-total-val").textContent = `₹${Number(cartData.total).toLocaleString()}`;
+    document.getElementById("cart-total-val").textContent = `$${Number(cartData.total).toLocaleString()}`;
     if (!cartData.items.length) {
         list.innerHTML = `<div class="cart-empty"><div style="font-size:40px">🛒</div><p>Your cart is empty</p></div>`;
         return;
@@ -1840,7 +1826,7 @@ function renderCartSidebar() {
                  onerror="this.src='${DEFAULT_IMAGE}'">
             <div class="cart-item-info">
                 <div class="cart-item-name">${item.name}</div>
-                <div class="cart-item-price">₹${Number(item.price).toLocaleString()} each</div>
+                <div class="cart-item-price">$${Number(item.price).toLocaleString()} each</div>
                 <div class="qty-controls">
                     <button class="qty-btn" onclick="changeQty(${item.cart_item_id}, ${item.quantity - 1})">−</button>
                     <span class="qty-val">${item.quantity}</span>
@@ -1848,7 +1834,7 @@ function renderCartSidebar() {
                 </div>
             </div>
             <div style="text-align:right;flex-shrink:0;">
-                <div style="font-size:14px;font-weight:700;color:var(--brand);font-family:'Sora',sans-serif;">₹${Number(item.subtotal).toLocaleString()}</div>
+                <div style="font-size:14px;font-weight:700;color:var(--brand);font-family:'Sora',sans-serif;">$${Number(item.subtotal).toLocaleString()}</div>
                 <button class="remove-btn" onclick="removeItem(${item.cart_item_id})">🗑️</button>
             </div>
         </div>`;
@@ -1862,7 +1848,7 @@ function openAddConfirm(productId) {
     pendingAddProductId = productId;
     pendingAddProduct   = product;
     document.getElementById("confirm-product-name").textContent  = product.name;
-    document.getElementById("confirm-product-price").textContent = `₹${Number(product.price).toLocaleString()}`;
+    document.getElementById("confirm-product-price").textContent = `$${Number(product.price).toLocaleString()}`;
     const imgEl = document.getElementById("confirm-product-img");
     const resolvedImg = getProductImage(product);
     imgEl.src = resolvedImg;
@@ -1960,51 +1946,11 @@ async function removeItem(cartItemId) {
 // ══════════════════════════════════════════════════════════════════
 //  CHECKOUT FLOW
 // ══════════════════════════════════════════════════════════════════
-async function checkout() {
-
-    const cart = JSON.parse(localStorage.getItem("cart")) || [];
-
-    const response = await fetch("http://127.0.0.1:8000/stripe/create-checkout-session", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            user_email: localStorage.getItem("user_email"),
-            items: cart
-        })
-    });
-
-    const data = await response.json();
-
-    if (data.checkout_url) {
-        window.location.href = data.checkout_url;
-    } else {
-        alert("Payment session failed");
-    }
-}
-
-
-function openCardPayment() {
-    closeCheckoutConfirm();
-    closeCart();
-    // Show payment modal directly with locked total
-    document.getElementById("pay-order-id-label").textContent = `#${currentOrderId}`;
-    document.getElementById("pay-amount-label").textContent   = `₹${Number(currentOrderTotal).toLocaleString()}`;
-    selectMethod("card");
-    document.getElementById("payment-modal").classList.add("open");
-}
-
 function initiateCheckout() {
     if (!cartData.items.length) { toast("Cart is empty", "error"); return; }
     const itemCount = cartData.items.reduce((s, i) => s + i.quantity, 0);
-
-    // Lock amount NOW so it cannot drift during the payment flow
-    currentOrderTotal = cartData.total;
-    currentOrderId    = "ORD-" + Math.random().toString(36).slice(2,8).toUpperCase(); // always fresh
-
-    document.getElementById("checkout-item-count").textContent    = `${itemCount} item${itemCount !== 1 ? "s" : ""}`;
-    document.getElementById("checkout-total-preview").textContent = `₹${Number(currentOrderTotal).toLocaleString()}`;
+    document.getElementById("checkout-item-count").textContent   = `${itemCount} item${itemCount !== 1 ? "s" : ""}`;
+    document.getElementById("checkout-total-preview").textContent= `$${Number(cartData.total).toLocaleString()}`;
     // Reset button states
     const sb = document.getElementById("stripe-checkout-btn");
     if (sb) { sb.disabled = false; sb.style.opacity = "1"; }
@@ -2016,264 +1962,83 @@ function closeCheckoutConfirm() {
 }
 
 // ── Stripe publishable key (safe to expose in frontend) ───────────
-const STRIPE_PK = "pk_test_51TMk490e40P4xL6aXXXXXXXXXXXXXX"; // ← replace with your real pk_test_... key
 
-function _resetStripeBtn() {
-    const sb = document.getElementById("stripe-checkout-btn");
-    if (!sb) return;
-    sb.disabled = false;
-    sb.style.opacity = "1";
-    sb.innerHTML = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="24" height="24" rx="4" fill="white" fill-opacity="0.2"/><path d="M11.5 8.5C11.5 7.67 12.17 7 13 7C13.83 7 14.5 7.67 14.5 8.5V9H16V8.5C16 6.84 14.66 5.5 13 5.5C11.34 5.5 10 6.84 10 8.5C10 11.5 14.5 11.5 14.5 14.5C14.5 15.33 13.83 16 13 16C12.17 16 11.5 15.33 11.5 14.5V14H10V14.5C10 16.16 11.34 17.5 13 17.5C14.66 17.5 16 16.16 16 14.5C16 11.5 11.5 11.5 11.5 8.5Z" fill="white"/></svg> Pay with Stripe`;
-}
+
 
 async function confirmCheckoutStripe() {
+    if (!cartData.items.length) { toast("Your cart is empty", "error"); return; }
+
     const sb = document.getElementById("stripe-checkout-btn");
-    if (sb) {
-        sb.disabled = true;
-        sb.style.opacity = "0.75";
-        sb.innerHTML = "⏳ Connecting to Stripe...";
+    const SVG_ICON = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="4" fill="white" fill-opacity="0.2"/><path d="M11.5 8.5C11.5 7.67 12.17 7 13 7C13.83 7 14.5 7.67 14.5 8.5V9H16V8.5C16 6.84 14.66 5.5 13 5.5C11.34 5.5 10 6.84 10 8.5C10 11.5 14.5 11.5 14.5 14.5C14.5 15.33 13.83 16 13 16C12.17 16 11.5 15.33 11.5 14.5V14H10V14.5C10 16.16 11.34 17.5 13 17.5C14.66 17.5 16 16.16 16 14.5C16 11.5 11.5 11.5 11.5 8.5Z" fill="white"/></svg> Pay with Stripe`;
+
+    const resetBtn = () => {
+        if (!sb) return;
+        sb.disabled = false; sb.style.opacity = "1"; sb.innerHTML = SVG_ICON;
+    };
+
+    if (sb) { sb.disabled = true; sb.style.opacity = "0.75"; sb.innerHTML = "⏳ Connecting to Stripe..."; }
+
+    // Require a real logged-in email — reject guest fallback
+    const userEmail = localStorage.getItem("email") || "";
+    if (!userEmail || userEmail === "guest@shopfast.com") {
+        toast("Please log in to complete payment", "error");
+        resetBtn();
+        setTimeout(() => { window.location.href = "/login"; }, 1500);
+        return;
     }
 
-    // ── Step 1: Try backend endpoint ──────────────────────────────
     try {
         const res = await fetch(`${BASE}/stripe/create-checkout-session`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                    user_email: email,
-                    total:      currentOrderTotal,
-                    order_id:   currentOrderId,
-                    items:      cartData.items.map(i => ({ name: i.name, price: i.price, qty: i.quantity })),
-                }),
+            credentials: "include",
+            body: JSON.stringify({ user_email: userEmail }),
         });
 
-        if (res.ok) {
-            const data = await res.json();
-            if (data.checkout_url) {
-                // Save order info so payment_success.html shows correct amount
-                localStorage.setItem("lastOrderId",    currentOrderId || "");
-                localStorage.setItem("lastOrderTotal", currentOrderTotal || 0);
-                closeCheckoutConfirm();
-                closeCart();
-                toast("✅ Redirecting to Stripe...", "success");
-                // Append params to success URL if Stripe supports it, else rely on localStorage
-                setTimeout(() => { window.location.href = data.checkout_url; }, 600);
-                return;
-            }
-            // Backend responded OK but no URL — fall through to client-side
-            console.warn("[Stripe] Backend returned no checkout_url:", data);
-        } else {
-            const errData = await res.json().catch(() => ({}));
-            console.warn(`[Stripe] Backend ${res.status}:`, errData);
-        }
-    } catch (fetchErr) {
-        // Backend not running or CORS blocked — fall through to client-side Stripe
-        console.warn("[Stripe] Backend unreachable:", fetchErr.message);
-    }
+        let data = {};
+        try { data = await res.json(); } catch (_) {}
 
-    // ── Step 2: Client-side Stripe Checkout (no backend needed) ──
-    // This creates a Stripe Checkout session directly from the browser
-    // using your publishable key. Works even with no backend running.
-    try {
-        // Load Stripe.js if not already loaded
-        if (!window.Stripe) {
-            await new Promise((resolve, reject) => {
-                const s = document.createElement("script");
-                s.src = "https://js.stripe.com/v3/";
-                s.onload = resolve;
-                s.onerror = reject;
-                document.head.appendChild(s);
-            });
-        }
-
-        const stripeObj = window.Stripe(STRIPE_PK);
-
-        // Build line items from current cart
-        const lineItems = cartData.items.map(item => ({
-            price_data: {
-                currency: "inr",
-                product_data: { name: item.name },
-                unit_amount: Math.round(Number(item.price) * 100),
-            },
-            quantity: item.quantity,
-        }));
-
-        if (!lineItems.length) {
-            toast("Your cart is empty", "error");
-            _resetStripeBtn();
+        if (!res.ok) {
+            toast(`❌ ${data.detail || "Server error (" + res.status + ")"}`, "error");
+            resetBtn();
             return;
         }
 
-        // redirectToCheckout requires a Payment Link OR a sessionId.
-        // Since we have no backend here, we open Stripe's hosted payment link
-        // with amount encoded — works for test mode verification.
-        // For production, the backend route (Step 1) must return checkout_url.
-        const totalCents = Math.round(Number(cartData.total) * 100);
-        const itemCount  = cartData.items.reduce((s, i) => s + i.quantity, 0);
+        if (!data.checkout_url) {
+            toast("❌ No checkout URL returned. Please try again.", "error");
+            resetBtn();
+            return;
+        }
 
-        // Stripe doesn't support creating sessions client-side (that needs a secret key).
-        // So: show a clear message directing them to fix the backend.
+        // Store order id before navigating away
+        if (data.order_id) localStorage.setItem("lastOrderId", String(data.order_id));
+
         closeCheckoutConfirm();
         closeCart();
-
-        // Show a helpful overlay instead of a silent failure
-        showStripeDebugOverlay(totalCents, itemCount);
+        toast("✅ Redirecting to Stripe...", "success");
+        setTimeout(() => { window.location.href = data.checkout_url; }, 400);
 
     } catch (err) {
-        console.error("[Stripe] Client-side error:", err);
-        toast("Stripe could not load. Check your internet connection.", "error");
-        _resetStripeBtn();
+        console.error("[Stripe]", err);
+        const msg = (err.message || "").includes("Failed to fetch")
+            ? "❌ Cannot reach server. Is your backend running?"
+            : "❌ Network error. Please try again.";
+        toast(msg, "error");
+        resetBtn();
     }
 }
 
-// ── Debug overlay: shown when backend is unreachable ─────────────
-function showStripeDebugOverlay(totalCents, itemCount) {
-    // Remove existing overlay if any
-    const old = document.getElementById("stripe-debug-overlay");
-    if (old) old.remove();
 
-    const overlay = document.createElement("div");
-    overlay.id = "stripe-debug-overlay";
-    overlay.style.cssText = `
-        position:fixed;inset:0;background:rgba(10,10,30,0.82);
-        z-index:99999;display:flex;align-items:center;justify-content:center;
-        backdrop-filter:blur(4px);font-family:'DM Sans',sans-serif;
-    `;
-    overlay.innerHTML = `
-        <div style="background:white;border-radius:20px;padding:32px 28px;
-                    width:90%;max-width:460px;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
-            <div style="font-size:42px;text-align:center;margin-bottom:12px;">⚠️</div>
-            <h3 style="font-family:'Sora',sans-serif;font-size:17px;color:#1a1a2e;
-                       text-align:center;margin-bottom:10px;">
-                Backend Not Connected
-            </h3>
-            <p style="color:#8888a0;font-size:13px;line-height:1.6;margin-bottom:18px;text-align:center;">
-                The <strong style="color:#6c5ce7">/stripe/create-checkout-session</strong> 
-                endpoint on <code style="background:#f4f3ff;padding:2px 6px;border-radius:4px;">${BASE}</code> 
-                is not reachable. Fix one of these:
-            </p>
-            <div style="background:#f4f3ff;border-radius:12px;padding:14px 16px;
-                        margin-bottom:18px;font-size:12px;color:#2d2d44;line-height:1.9;">
-                <strong>Option A — Start your FastAPI backend:</strong><br>
-                &nbsp;&nbsp;<code style="background:#1a1a2e;color:#a29bfe;padding:2px 8px;
-                             border-radius:4px;">uvicorn main:app --reload</code><br><br>
-                <strong>Option B — Add the route from the provided file:</strong><br>
-                &nbsp;&nbsp;Copy <code style="background:#1a1a2e;color:#a29bfe;padding:2px 8px;
-                             border-radius:4px;">stripe_checkout.py</code> into your project and 
-                include the router in your FastAPI app.<br><br>
-                <strong>Option C — Test Stripe right now (Stripe Dashboard):</strong><br>
-                &nbsp;&nbsp;Go to 
-                <a href="https://dashboard.stripe.com/test/payment-links" target="_blank" 
-                   style="color:#6c5ce7;">dashboard.stripe.com → Payment Links</a> 
-                and create a test link manually.
-            </div>
-            <div style="background:#fff3cd;border-radius:10px;padding:10px 14px;
-                        font-size:12px;color:#856404;margin-bottom:20px;">
-                <strong>Cart total:</strong> ₹${(totalCents/100).toLocaleString()} 
-                &nbsp;|&nbsp; <strong>Items:</strong> ${itemCount}
-            </div>
-            <button onclick="document.getElementById('stripe-debug-overlay').remove()"
-                style="width:100%;padding:12px;background:linear-gradient(135deg,#635bff,#7c6fff);
-                       color:white;border:none;border-radius:12px;font-size:14px;font-weight:700;
-                       cursor:pointer;font-family:'DM Sans',sans-serif;">
-                Got it — I'll fix the backend
-            </button>
-        </div>
-    `;
-    document.body.appendChild(overlay);
-    _resetStripeBtn();
-}
 
-function closeStripeModal() {
-    const m = document.getElementById("stripe-inline-modal");
-    if (m) m.classList.remove("open");
-}
 
-async function processStripePayment() {
-    const cardNum  = (document.getElementById("si-card-number").value || "").replace(/\s/g, "");
-    const expiry   = (document.getElementById("si-expiry").value || "").trim();
-    const cvv      = (document.getElementById("si-cvv").value || "").trim();
-    const name     = (document.getElementById("si-name").value || "").trim();
-    const emailVal = (document.getElementById("si-email").value || "").trim();
 
-    if (cardNum.length < 16)   { toast("Enter a valid 16-digit card number", "error"); return; }
-    if (expiry.length < 4)     { toast("Enter expiry in MM / YY format", "error"); return; }
-    if (cvv.length < 3)        { toast("Enter a valid CVV", "error"); return; }
-    if (!name)                 { toast("Enter the name on card", "error"); return; }
-    if (!emailVal.includes("@")) { toast("Enter a valid email for receipt", "error"); return; }
 
-    const payBtn = document.getElementById("si-pay-btn");
-    payBtn.disabled = true;
-    payBtn.innerHTML = "⏳ Processing…";
-
-    // Simulate network round-trip (1.5 s)
-    await new Promise(r => setTimeout(r, 1500));
-
-    // ── Luhn check for realistic card validation ──────────────────
-    const luhn = n => {
-        let s = 0, alt = false;
-        for (let i = n.length - 1; i >= 0; i--) {
-            let d = parseInt(n[i]);
-            if (alt) { d *= 2; if (d > 9) d -= 9; }
-            s += d; alt = !alt;
-        }
-        return s % 10 === 0;
-    };
-
-    // Test card 4242424242424242 always succeeds; others checked via Luhn
-    const isTestCard = cardNum === "4242424242424242";
-    const cardValid  = isTestCard || luhn(cardNum);
-
-    if (!cardValid) {
-        toast("Card declined — try test card 4242 4242 4242 4242", "error");
-        payBtn.disabled = false;
-        payBtn.innerHTML = "🔒 Pay Now";
-        return;
-    }
-
-    // ── Success path ──────────────────────────────────────────────
-    closeStripeModal();
-
-    // Try to record the order on the backend (non-fatal if backend is down)
-    try {
-        await fetch(`${BASE}/payment/complete`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                user_email:     email,
-                order_id:       currentOrderId || "STRIPE-" + Date.now(),
-                payment_method: "Stripe Card",
-                amount:         cartData.total,
-            }),
-        });
-    } catch (_) { /* backend optional for Stripe flow */ }
-
-    // Show the existing payment-success modal
-    const orderId = currentOrderId || ("STR-" + Math.random().toString(36).slice(2,8).toUpperCase());
-    const total   = cartData.total;
-
-    // Clear cart after payment
-    cartData = { items: [], total: 0 };
-    saveCartToStorage();
-    updateCartBadge();
-
-    const psOrder  = document.getElementById("ps-order-id");
-    const psAmount = document.getElementById("ps-amount");
-    const psMethod = document.getElementById("ps-method");
-
-    if (psOrder)  psOrder.textContent  = `#${orderId}`;
-    if (psAmount) psAmount.textContent = `₹${Number(total).toLocaleString()}`;
-    if (psMethod) psMethod.textContent = "Stripe Card";
-
-    document.getElementById("payment-success-modal").classList.add("open");
-    toast("✅ Payment successful! Confirmation email sent.", "success");
-}
 
 // ── Payment Dashboard Modal (Card/UPI/NetBanking) ─────────────────
 function openPaymentModal() {
     if (!currentOrderId) return;
     document.getElementById("pay-order-id-label").textContent = `#${currentOrderId}`;
-    document.getElementById("pay-amount-label").textContent   = `₹${Number(currentOrderTotal).toLocaleString()}`;
+    document.getElementById("pay-amount-label").textContent   = `$${Number(currentOrderTotal).toLocaleString()}`;
     selectMethod("card");
     document.getElementById("order-modal").classList.remove("open");
     document.getElementById("payment-modal").classList.add("open");
@@ -2330,25 +2095,16 @@ async function processPayment() {
     await new Promise(r => setTimeout(r, 1200));
 
     const methodLabel = { card: "Card", upi: "UPI", netbanking: "Net Banking" }[selectedPayMethod];
+    const orderId = "ORD-" + Math.random().toString(36).slice(2,8).toUpperCase();
 
-    // ── Capture EVERYTHING before clearing state ──────────────────
-    const confirmedTotal   = currentOrderTotal || cartData.total;  // lock amount
-    const confirmedOrderId = currentOrderId    || ("ORD-" + Math.random().toString(36).slice(2,8).toUpperCase());
-
-    // Save to localStorage so payment_success page can read it
-    localStorage.setItem("lastOrderId",    confirmedOrderId);
-    localStorage.setItem("lastOrderTotal", confirmedTotal);
-
-    // Clear cart + order state
-    cartData          = { items: [], total: 0 };
-    currentOrderId    = null;
-    currentOrderTotal = null;
+    // Clear cart after successful payment
+    cartData = { items: [], total: 0 };
     saveCartToStorage();
     updateCartBadge();
 
     document.getElementById("payment-modal").classList.remove("open");
-    document.getElementById("ps-order-id").textContent = `#${confirmedOrderId}`;
-    document.getElementById("ps-amount").textContent   = `₹${Number(confirmedTotal).toLocaleString()}`;
+    document.getElementById("ps-order-id").textContent = `#${currentOrderId || orderId}`;
+    document.getElementById("ps-amount").textContent   = `$${Number(currentOrderTotal).toLocaleString()}`;
     document.getElementById("ps-method").textContent   = methodLabel;
     document.getElementById("payment-success-modal").classList.add("open");
     toast("✅ Payment successful!", "success");
@@ -2359,12 +2115,7 @@ async function processPayment() {
 // ── Navigation ────────────────────────────────────────────────────
 function goToDashboard() {
     document.getElementById("payment-success-modal").classList.remove("open");
-    // Pass order details via URL so payment_success.html shows dynamic values
-    const oid   = localStorage.getItem("lastOrderId")    || "";
-    const total = localStorage.getItem("lastOrderTotal") || "";
-    const em    = localStorage.getItem("email")          || "";
-    const params = new URLSearchParams({ order_id: oid, total: total, email: em }).toString();
-    window.location.href = `/payment_success?${params}`;
+    window.location.href = "/user-dashboard";
 }
 
 function closeOrderModal() {

@@ -8,82 +8,79 @@
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'DM Sans', sans-serif; background: linear-gradient(135deg, #f0efff 0%, #f7f8fc 60%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
-        .card { background: #fff; border-radius: 24px; padding: 48px 40px; max-width: 440px; width: 100%; text-align: center; box-shadow: 0 8px 48px rgba(99,91,255,0.13); animation: up .4s ease; }
-        @keyframes up { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
-        .icon-wrap { width: 88px; height: 88px; background: linear-gradient(135deg, #00b894, #00cba9); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; box-shadow: 0 8px 28px rgba(0,184,148,.38); animation: pop .5s cubic-bezier(.34,1.56,.64,1) .15s both; }
-        @keyframes pop { from{transform:scale(0)} to{transform:scale(1)} }
-        .icon-wrap svg { width: 44px; height: 44px; }
-        
-        @keyframes draw { to { stroke-dashoffset: 0; } }
-        .badge { display: inline-flex; align-items: center; gap: 8px; background: #f0efff; color: #635bff; font-size: 12px; font-weight: 700; padding: 5px 14px; border-radius: 20px; margin-bottom: 22px; border: 1px solid #dddaff; }
-        h1 { font-family: 'Sora', sans-serif; font-size: 23px; font-weight: 700; color: #1a1a2e; margin-bottom: 8px; }
-        .sub { color: #888; font-size: 14px; margin-bottom: 28px; line-height: 1.6; }
-        .box { background: #f7f8fc; border-radius: 16px; padding: 18px 20px; margin-bottom: 28px; text-align: left; border: 1px solid #eeecff; }
-        .row { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #eeecff; font-size: 14px; }
-        .row:last-child { border-bottom: none; }
-        .row .l { color: #888; font-weight: 500; }
-        .row .v { color: #1a1a2e; font-weight: 700; }
-        .row .v.green  { color: #00b894; }
-        .row .v.purple { color: #635bff; }
-        .btn { display: block; width: 100%; padding: 14px; border: none; border-radius: 12px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; text-decoration: none; text-align: center; transition: opacity .2s, transform .15s; margin-bottom: 10px; }
-        .btn:hover { opacity: .88; transform: translateY(-1px); }
-        .btn-primary { background: linear-gradient(135deg, #635bff, #8b7fff); color: #fff; box-shadow: 0 4px 18px rgba(99,91,255,.30); }
-        .btn-out { background: transparent; color: #635bff; border: 2px solid #635bff; }
-        .confetti { font-size: 22px; letter-spacing: 4px; margin-bottom: 6px; }
+        .card { background: #fff; border-radius: 24px; padding: 48px 40px; max-width: 460px; width: 100%; text-align: center; box-shadow: 0 8px 48px rgba(99,91,255,0.13); animation: slideUp .4s ease; }
+        @keyframes slideUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+        .icon-wrap { width:88px; height:88px; background:linear-gradient(135deg,#00b894,#00cba9); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 24px; box-shadow:0 8px 28px rgba(0,184,148,.38); animation:popIn .5s cubic-bezier(.34,1.56,.64,1) .15s both; }
+        @keyframes popIn { from{transform:scale(0)} to{transform:scale(1)} }
+        .icon-wrap svg { width:44px; height:44px; }
+        @keyframes drawCheck { to { stroke-dashoffset: 0; } }
+        .badge { display:inline-flex; align-items:center; gap:8px; background:#f0efff; color:#635bff; font-size:12px; font-weight:700; padding:5px 14px; border-radius:20px; margin-bottom:22px; border:1px solid #dddaff; }
+        h1 { font-family:'Sora',sans-serif; font-size:24px; font-weight:700; color:#1a1a2e; margin-bottom:8px; }
+        .sub { color:#888; font-size:14px; margin-bottom:28px; line-height:1.7; }
+        .box { background:#f7f8fc; border-radius:16px; padding:18px 20px; margin-bottom:28px; text-align:left; border:1px solid #eeecff; }
+        .row { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #eeecff; font-size:14px; }
+        .row:last-child { border-bottom:none; }
+        .row .l { color:#888; font-weight:500; }
+        .row .v { color:#1a1a2e; font-weight:700; }
+        .row .v.green  { color:#00b894; }
+        .row .v.purple { color:#635bff; }
+        .btn { display:block; width:100%; padding:14px; border:none; border-radius:12px; font-family:'DM Sans',sans-serif; font-size:15px; font-weight:700; cursor:pointer; text-decoration:none; text-align:center; transition:opacity .2s,transform .15s; margin-bottom:10px; }
+        .btn:hover { opacity:.88; transform:translateY(-1px); }
+        .btn-primary { background:linear-gradient(135deg,#635bff,#8b7fff); color:#fff; box-shadow:0 4px 18px rgba(99,91,255,.30); }
+        .btn-outline { background:transparent; color:#635bff; border:2px solid #635bff; }
+        .confetti { font-size:24px; letter-spacing:6px; margin-bottom:8px; }
     </style>
 </head>
 <body>
-    <div class="card">
-        <div class="icon-wrap">
-            <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9 22L18 31L35 14" stroke="white" stroke-width="4"
-                      stroke-linecap="round" stroke-linejoin="round"
-                      stroke-dasharray="40" stroke-dashoffset="40"
-                      style="animation: draw 0.5s ease 0.6s forwards;"></path>
-            </svg>
-        </div>
-        <div class="confetti">🎉 🎊 🎉</div>
-        <div class="badge">💳 Paid via Stripe</div>
-        <h1>Payment Successful!</h1>
-        <p class="sub" id="sub-text">
-            Your Stripe payment was captured and your order is confirmed.<br>
-            A confirmation email has been sent to your registered address.
-        </p>
-        <div class="box" id="summary-box">
-            <div class="row"><span class="l">Payment Status</span><span class="v green">✅ Completed</span></div>
-            <div class="row"><span class="l">Payment Method</span><span class="v purple">💳 Stripe</span></div>
-            <div class="row"><span class="l">Order Status</span><span class="v green">Paid</span></div>
-            <div class="row"><span class="l">Email</span><span class="v">Confirmation sent ✓</span></div>
-        </div>
-        <a href="/user-dashboard" class="btn btn-primary">🏠 Go to Dashboard</a>
-        <a href="/shop" class="btn btn-out">🛍️ Continue Shopping</a>
+<div class="card">
+    <div class="icon-wrap">
+        <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 22L18 31L35 14" stroke="white" stroke-width="4"
+                  stroke-linecap="round" stroke-linejoin="round"
+                  stroke-dasharray="40" stroke-dashoffset="40"
+                  style="animation: drawCheck 0.5s ease 0.6s forwards;"></path>
+        </svg>
     </div>
-    <script>
-        const params  = new URLSearchParams(window.location.search);
-        const orderId = params.get("order_id") || localStorage.getItem("lastOrderId") || "";
-        const total   = params.get("total")    || localStorage.getItem("lastOrderTotal") || "";
-        const email   = params.get("email")    ||
-                        localStorage.getItem("email") ||
-                        localStorage.getItem("userEmail") ||
-                        localStorage.getItem("user_email") || "";
+    <div class="confetti">🎉 🎊 🎉</div>
+    <div class="badge">💳 Paid via Stripe</div>
+    <h1>Payment Successful!</h1>
+    <p class="sub" id="sub-text">
+        Your Stripe payment was captured and your order is confirmed.<br>
+        A confirmation email has been sent to your registered address.
+    </p>
+    <div class="box" id="summary-box">
+        <div class="row"><span class="l">Payment Status</span><span class="v green">✅ Completed</span></div>
+        <div class="row"><span class="l">Payment Method</span><span class="v purple">💳 Stripe</span></div>
+        <div class="row"><span class="l">Order Status</span><span class="v green">Paid</span></div>
+        <div class="row"><span class="l">Email</span><span class="v">Confirmation sent ✓</span></div>
+    </div>
+    <a href="/user-dashboard" class="btn btn-primary">🏠 Go to Dashboard</a>
+    <a href="/shop"           class="btn btn-outline">🛍️ Continue Shopping</a>
+</div>
+<script>
+    // Server-injected values from Jinja2 (FastAPI passes order_id and total via template context)
+    const SERVER_ORDER_ID = "{{ order_id if order_id is not none else '' }}";
+    const SERVER_TOTAL    = "{{ '%.2f'|format(total) if total is not none else '' }}";
 
-        if (orderId) localStorage.setItem("lastOrderId",    orderId);
-        if (total)   localStorage.setItem("lastOrderTotal", total);
-        if (email)   localStorage.setItem("email",          email);
+    const params    = new URLSearchParams(window.location.search);
+    const orderId   = SERVER_ORDER_ID || params.get("order_id") || localStorage.getItem("lastOrderId") || "";
+    const total     = SERVER_TOTAL    || params.get("total")    || localStorage.getItem("lastOrderTotal") || "";
+    const userEmail = localStorage.getItem("email") || localStorage.getItem("userEmail") || "";
 
-        const box = document.getElementById("summary-box");
-        if (box) {
-            const rows = [];
-            if (orderId) rows.push(`<div class="row"><span class="l">Order ID</span><span class="v purple">#${orderId}</span></div>`);
-            if (total)   rows.push(`<div class="row"><span class="l">Amount Paid</span><span class="v green">&#8377;${parseFloat(total).toLocaleString("en-IN",{minimumFractionDigits:2})}</span></div>`);
-            if (email)   rows.push(`<div class="row"><span class="l">Account</span><span class="v" style="font-size:12px;word-break:break-all">${email}</span></div>`);
-            if (rows.length) box.innerHTML = rows.join("") + box.innerHTML;
-        }
-        if (orderId) {
-            document.getElementById("sub-text").innerHTML =
-                `Order <strong>#${orderId}</strong> is confirmed and being processed.<br>` +
-                `A confirmation email has been sent to your registered address.`;
-        }
-    </script>
+    if (orderId) localStorage.setItem("lastOrderId",    orderId);
+    if (total)   localStorage.setItem("lastOrderTotal", total);
+
+    const box  = document.getElementById("summary-box");
+    const rows = [];
+    if (orderId) rows.push(`<div class="row"><span class="l">Order ID</span><span class="v purple">#${orderId}</span></div>`);
+    if (total && !isNaN(parseFloat(total))) rows.push(`<div class="row"><span class="l">Amount Paid</span><span class="v green">&#8377;${parseFloat(total).toLocaleString("en-IN",{minimumFractionDigits:2})}</span></div>`);
+    if (userEmail) rows.push(`<div class="row"><span class="l">Account</span><span class="v" style="font-size:12px;word-break:break-all">${userEmail}</span></div>`);
+    if (rows.length) box.innerHTML = rows.join("") + box.innerHTML;
+
+    if (orderId) {
+        document.getElementById("sub-text").innerHTML =
+            `Order <strong>#${orderId}</strong> is confirmed and being processed.<br>A confirmation email has been sent to your registered address.`;
+    }
+</script>
 </body>
 </html>
