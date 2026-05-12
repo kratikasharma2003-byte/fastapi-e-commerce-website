@@ -91,7 +91,9 @@ def render(template_name: str, context: dict) -> _HTMLResponse:
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # or your frontend domain
+    allow_origins=[
+        "http://127.0.0.1:8000",
+        "https://new-fastapi-e-commerce-website.onrender.com"
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -100,7 +102,10 @@ app.add_middleware(
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.getenv("SESSION_SECRET", "change-me-in-production"),
+    https_only=True,   # ← add this line
+    same_site="none",  # ← add this line
 )
+
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
