@@ -89,22 +89,41 @@ def render(template_name: str, context: dict) -> _HTMLResponse:
     return _HTMLResponse(content=html)
 # ─────────────────────────────────────────────────────────────────────────────
 
+ALLOWED_ORIGINS = [
+    "http://127.0.0.1:8000",
+    "http://localhost:8000",
+    "https://new-fastapi-e-commerce-website.onrender.com",
+    # Add any other preview / custom domains here
+]
+
+# Dynamically allow any *.onrender.com subdomain (covers Render preview URLs)
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp
+
+def _is_allowed_origin(origin: str) -> bool:
+    if origin in ALLOWED_ORIGINS:
+        return True
+    if origin.endswith(".onrender.com"):
+        return True
+    return False
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://127.0.0.1:8000",
-        "https://new-fastapi-e-commerce-website.onrender.com"
-    ],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=r"https://.*\.onrender\.com",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+IS_PRODUCTION = os.getenv("RENDER", "") != "" or os.getenv("ENV", "").lower() == "production"
+
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.getenv("SESSION_SECRET", "change-me-in-production"),
-    https_only=True,   # ← add this line
-    same_site="none",  # ← add this line
+    https_only=IS_PRODUCTION,   # True on Render (HTTPS), False locally (HTTP)
+    same_site="none" if IS_PRODUCTION else "lax",
+    max_age=86400,  # 24 hours — prevents session expiry mid-session
 )
 
 
@@ -758,15 +777,19 @@ def list_deleted_products(db: Session = Depends(get_db)):
 # ══════════════════════════════════════════════════════════════════
 
 @app.post("/cart/add")
-def add_to_cart(data: CartAdd, db: Session = Depends(get_db)):
+def add_to_cart(data: CartAdd, request: Request, db: Session = Depends(get_db)):
+    # Log incoming request to help debug live-host issues
+    origin = request.headers.get("origin", "unknown")
+    logger.info(f"[cart/add] origin={origin} user={data.user_email} product={data.product_id}")
+
     # Treat NULL is_deleted as not-deleted for backwards compatibility
     user = db.query(models.User).filter(
         models.User.email == data.user_email,
         or_(models.User.is_deleted == False, models.User.is_deleted == None),  # noqa: E712, E711
     ).first()
     if not user:
-        logger.warning(f"[cart/add] User not found: {data.user_email}")
-        raise HTTPException(404, "User not found")
+        logger.warning(f"[cart/add] User not found: {data.user_email} | origin={origin}")
+        raise HTTPException(401, "Please log in to add items to cart")
     product = db.query(models.Product).filter(
         models.Product.id == data.product_id,
         or_(models.Product.is_deleted == False, models.Product.is_deleted == None),  # noqa: E712, E711
@@ -1291,7 +1314,7 @@ def create_checkout_session(data: CheckoutRequest, db: Session = Depends(get_db)
         raise HTTPException(status_code=400, detail="Email is required")
 
     try:
-        app_host = os.getenv("BASE_URL") or os.getenv("APP_HOST") or "http://127.0.0.1:8000"
+        app_host = os.getenv("BASE_URL") or os.getenv("APP_HOST") or "https://new-fastapi-e-commerce-website.onrender.com"
         with db_transaction(db):
             order, _ = _build_order_from_cart(data.user_email, db)
             order_id = order.id

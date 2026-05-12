@@ -1246,8 +1246,8 @@
 <script>
 const BASE = window.location.origin;  // auto-detects: works on Render AND localhost
 // Use stored email or a guest fallback so the page never redirects when opened directly
-const email = localStorage.getItem("email") || "guest@shopfast.com";
-if (!localStorage.getItem("email")) localStorage.setItem("email", email);
+const email = localStorage.getItem("email") || "";
+// Do NOT set a guest fallback — unauthenticated users must log in
 
 let allProducts       = [];
 let cartData          = { items: [], total: 0 };
@@ -1911,6 +1911,11 @@ async function confirmAddToCart() {
     closeAddConfirm();
 
     const userEmail = localStorage.getItem("email") || "";
+    if (!userEmail) {
+        toast("Please log in to add items to cart", "error");
+        setTimeout(() => { window.location.href = "/login"; }, 1500);
+        return;
+    }
     if (userEmail && userEmail !== "guest@shopfast.com") {
         try {
             const res = await fetch(`${BASE}/cart/add`, {
@@ -1933,10 +1938,14 @@ async function confirmAddToCart() {
             showStepper(productId);
             return;
         } catch (err) {
-            console.warn("[confirmAddToCart] Falling back to local cart:", err.message);
+            toast("Could not reach server. Please try again.", "error");
+            console.warn("[confirmAddToCart] Error:", err.message);
+            return;
         }
+        return; // logged-in path ends here
     }
 
+    // Guest fallback (should not reach here on Render since we redirect above)
     const existing = cartData.items.find(i => i.product_id === productId);
     if (existing) {
         existing.quantity += 1;
