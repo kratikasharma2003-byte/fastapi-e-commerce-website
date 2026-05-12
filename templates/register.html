@@ -112,7 +112,7 @@ p { text-align: center; margin-top: 10px; }
 
 <script>
 // ✅ Change only this one line to update ALL API calls
-const API_BASE = "https://new-fastapi-e-commerce-website.onrender.com";
+const API_BASE = window.location.origin;
 
 // Wake up the Render free-tier server on page load (sleeps after 15 min)
 (async function() { try { await fetch(API_BASE + '/products'); } catch(_) {} })();

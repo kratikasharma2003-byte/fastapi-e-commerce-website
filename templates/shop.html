@@ -1336,7 +1336,6 @@ function useDemoProducts() {
         banner.style.cssText = "display:inline-block;margin-left:12px;font-size:11px;background:#fff3cd;color:#856404;border:1px solid #ffc107;padding:2px 10px;border-radius:20px;font-weight:600;";
         banner.setAttribute("data-demo-banner", "1");
         banner.setAttribute("data-demo-banner","1");
-        banner.textContent = "⚠️ Demo mode — backend offline";
         info.appendChild(banner);
     }
 }
@@ -1788,20 +1787,47 @@ function renderStarsHTMLRaw(productId) {
 
 // ── Cart (fully local – no backend required) ─────────────────────
 function saveCartToStorage() {
-    try { localStorage.setItem("shopfast_cart", JSON.stringify(cartData)); } catch {}
+    try {
+        localStorage.setItem("shopfast_cart", JSON.stringify(cartData));
+        localStorage.setItem("cart", JSON.stringify(cartData.items || []));
+    } catch {}
 }
 
 function loadCartFromStorage() {
     try {
-        const stored = localStorage.getItem("shopfast_cart");
-        if (stored) cartData = JSON.parse(stored);
+        const stored = localStorage.getItem("shopfast_cart") || localStorage.getItem("cart");
+        if (stored) {
+            cartData = JSON.parse(stored);
+            saveCartToStorage();
+        }
     } catch {}
 }
 
 async function loadCart() {
+    const userEmail = localStorage.getItem("email") || "";
+    if (userEmail && userEmail !== "guest@shopfast.com") {
+        try {
+            const res = await fetch(`${BASE}/cart?email=${encodeURIComponent(userEmail)}`, {
+                credentials: "include",
+            });
+            if (!res.ok) throw new Error(`Server error ${res.status}`);
+            const data = await res.json();
+            cartData = {
+                items: Array.isArray(data.items) ? data.items : [],
+                total: Number(data.total) || 0,
+            };
+            saveCartToStorage();
+            updateCartUI();
+            return;
+        } catch (err) {
+            console.warn("[loadCart] Falling back to local cart:", err.message);
+        }
+    }
+
     loadCartFromStorage();
-    updateCartBadge();
-    renderCartSidebar();
+    cartData.items = Array.isArray(cartData.items) ? cartData.items : [];
+    cartData.total = cartData.items.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
+    updateCartUI();
 }
 
 function updateCartBadge() {
@@ -1841,6 +1867,22 @@ function renderCartSidebar() {
     }).join("");
 }
 
+function updateCartUI() {
+    updateCartBadge();
+    renderCartSidebar();
+
+    for (const product of allProducts) {
+        const inCart = cartData.items.find(i => i.product_id === product.id);
+        if (inCart) {
+            const countEl = document.getElementById(`count-${product.id}`);
+            if (countEl) countEl.textContent = inCart.quantity;
+            showStepper(product.id);
+        } else {
+            showAddBtn(product.id);
+        }
+    }
+}
+
 // ── Add to Cart Confirm ───────────────────────────────────────────
 function openAddConfirm(productId) {
     const product = allProducts.find(p => p.id === productId);
@@ -1868,7 +1910,33 @@ async function confirmAddToCart() {
     const product   = pendingAddProduct;
     closeAddConfirm();
 
-    // ── Fully local cart logic ────────────────────────────────────
+    const userEmail = localStorage.getItem("email") || "";
+    if (userEmail && userEmail !== "guest@shopfast.com") {
+        try {
+            const res = await fetch(`${BASE}/cart/add`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({
+                    user_email: userEmail,
+                    product_id: productId,
+                    quantity: 1,
+                }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                toast(data.detail || "Could not add item to cart", "error");
+                return;
+            }
+            await loadCart();
+            toast("Added to cart ✓", "success");
+            showStepper(productId);
+            return;
+        } catch (err) {
+            console.warn("[confirmAddToCart] Falling back to local cart:", err.message);
+        }
+    }
+
     const existing = cartData.items.find(i => i.product_id === productId);
     if (existing) {
         existing.quantity += 1;
@@ -1924,6 +1992,25 @@ async function stepCart(productId, delta) {
 
 async function changeQty(cartItemId, newQty) {
     if (newQty <= 0) { await removeItem(cartItemId); return; }
+    const userEmail = localStorage.getItem("email") || "";
+    if (userEmail && userEmail !== "guest@shopfast.com") {
+        try {
+            const res = await fetch(`${BASE}/cart/update/${cartItemId}?quantity=${encodeURIComponent(newQty)}`, {
+                method: "PUT",
+                credentials: "include",
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                toast(data.detail || "Could not update cart", "error");
+                return;
+            }
+            await loadCart();
+            return;
+        } catch (err) {
+            console.warn("[changeQty] Falling back to local cart:", err.message);
+        }
+    }
+
     const item = cartData.items.find(i => i.cart_item_id === cartItemId);
     if (item) {
         item.quantity = newQty;
@@ -1936,6 +2023,25 @@ async function changeQty(cartItemId, newQty) {
 }
 
 async function removeItem(cartItemId) {
+    const userEmail = localStorage.getItem("email") || "";
+    if (userEmail && userEmail !== "guest@shopfast.com") {
+        try {
+            const res = await fetch(`${BASE}/cart/remove/${cartItemId}`, {
+                method: "DELETE",
+                credentials: "include",
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                toast(data.detail || "Could not remove item", "error");
+                return;
+            }
+            await loadCart();
+            return;
+        } catch (err) {
+            console.warn("[removeItem] Falling back to local cart:", err.message);
+        }
+    }
+
     cartData.items = cartData.items.filter(i => i.cart_item_id !== cartItemId);
     cartData.total = cartData.items.reduce((s, i) => s + i.subtotal, 0);
     saveCartToStorage();
@@ -2141,6 +2247,7 @@ function toast(msg, type = "") {
 }
 
 function logout() { localStorage.clear(); window.location.href = "/login"; }
+
 </script>
 </body>
 </html>

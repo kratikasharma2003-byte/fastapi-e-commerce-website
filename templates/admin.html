@@ -588,10 +588,10 @@ function checkAdminAuth() {
         document.getElementById("admin-login-overlay").classList.add("hidden");
         if (loginFlowAdmin && !sessionAuth) {
             sessionStorage.setItem(AUTH_KEY, "true");
-            loadProducts(false);
-            startAutoRefresh();
         }
+        return true;
     }
+    return false;
 }
 
 function adminLogin() {
@@ -631,11 +631,8 @@ function adminLogout() {
     document.getElementById("admin-login-overlay").classList.remove("hidden");
     window.location.href = "/login";
 }
-
-checkAdminAuth();
-
 // ── State ─────────────────────────────────────────────────────────
-const BASE = "https://new-fastapi-e-commerce-website.onrender.com";
+const BASE = window.location.origin;
 
 // Wake up the Render free-tier server on page load
 (async function() { try { await fetch(BASE + "/products"); } catch(_) {} })();
@@ -1258,6 +1255,11 @@ async function manualRefresh() { await loadProducts(false); }
 function startAutoRefresh() {
     if (autoTimer) clearInterval(autoTimer);
     autoTimer = setInterval(() => loadProducts(true), AUTO_MS);
+}
+
+if (checkAdminAuth()) {
+    loadProducts(false);
+    startAutoRefresh();
 }
 
 </script>

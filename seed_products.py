@@ -16,7 +16,7 @@ def seed_products():
                 name="Premium Wireless Headphones",
                 description="High-fidelity audio with active noise cancellation and 40-hour battery life. Matte black finish.",
                 price=15000.0,
-                image_url="/static/images/headphones.png",
+                image="/static/images/headphones.png",
                 category="Electronics",
                 stock=25
             ),
@@ -24,7 +24,7 @@ def seed_products():
                 name="Sleek Pro Smartwatch",
                 description="Advanced health tracking, GPS, and high-resolution OLED display. Water-resistant up to 50m.",
                 price=12000.0,
-                image_url="/static/images/smartwatch.png",
+                image="/static/images/smartwatch.png",
                 category="Electronics",
                 stock=15
             ),
@@ -32,7 +32,7 @@ def seed_products():
                 name="Elite Performance Laptop",
                 description="Ultra-thin laptop with the latest processor, 16GB RAM, and 512GB SSD. Perfect for professionals.",
                 price=85000.0,
-                image_url="/static/images/laptop.png",
+                image="/static/images/laptop.png",
                 category="Computers",
                 stock=10
             ),
@@ -40,7 +40,7 @@ def seed_products():
                 name="Pro Mirrorless Camera",
                 description="Capture stunning photos and 4K videos with this 24.2MP full-frame mirrorless camera.",
                 price=125000.0,
-                image_url="/static/images/camera.png",
+                image="/static/images/camera.png",
                 category="Cameras",
                 stock=5
             )

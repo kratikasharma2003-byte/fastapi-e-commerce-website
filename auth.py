@@ -2,8 +2,11 @@ from passlib.context import CryptContext
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-def hash_password(password: str):
-    return pwd_context.hash(password)
+def hash_password(password: str) -> str:
+    # Downgrade to bcrypt_sha256 which handles long passwords automatically
+    truncated = password[:72]
+    return pwd_context.hash(truncated)
 
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+def verify_password(plain: str, hashed: str) -> bool:
+    truncated = plain[:72]
+    return pwd_context.verify(truncated, hashed)

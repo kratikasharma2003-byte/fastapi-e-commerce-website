@@ -1259,7 +1259,7 @@
 <div id="toast"></div>
 
 <script>
-const BASE  = "https://new-fastapi-e-commerce-website.onrender.com";
+const BASE  = window.location.origin;
 // Use stored email or a guest fallback so the page never redirects when opened directly
 const email = localStorage.getItem("email") || "guest@shopfast.com";
 if (!localStorage.getItem("email")) localStorage.setItem("email", email);
@@ -1964,7 +1964,7 @@ async function checkout() {
 
     const cart = JSON.parse(localStorage.getItem("cart")) || [];
 
-    const response = await fetch("http://127.0.0.1:8000/stripe/create-checkout-session", {
+    const response = await fetch(`${BASE}/stripe/create-checkout-session`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json"

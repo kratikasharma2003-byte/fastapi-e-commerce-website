@@ -1,11 +1,19 @@
+import os
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-SMTP_HOST       = "smtp.gmail.com"
-SMTP_PORT       = 587
-SENDER_EMAIL    = "kratikasharma2003@gmail.com"
-SENDER_PASSWORD = "emmqbqfcawizxyvv"
+SMTP_HOST       = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT       = int(os.getenv("SMTP_PORT", "587"))
+SENDER_EMAIL    = os.getenv("SENDER_EMAIL", "")
+SENDER_PASSWORD = os.getenv("SENDER_PASSWORD", "")
+
+
+def _ensure_email_config():
+    if not SENDER_EMAIL or not SENDER_PASSWORD:
+        raise Exception(
+            "Email is not configured. Set SENDER_EMAIL and SENDER_PASSWORD in your environment."
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -25,6 +33,7 @@ def send_email(to_email: str, subject: str, body: str):
                      caller (main.py) can return a proper HTTP 500.
     """
     try:
+        _ensure_email_config()
         msg            = MIMEMultipart("alternative")
         msg["Subject"] = subject
         msg["From"]    = SENDER_EMAIL
@@ -256,9 +265,10 @@ Thanks for choosing ShopFast!
 
     # ── Send ──────────────────────────────────────────────────────────
     try:
+        _ensure_email_config()
         msg            = MIMEMultipart("alternative")
         msg["Subject"] = f"🎉 Order Placed Successfully! — Order #{order_id}"
-        msg["From"]    = "kratikasharma2003@gmail.com"
+        msg["From"]    = SENDER_EMAIL
         msg["To"]      = to_email
 
         msg.attach(MIMEText(plain_text, "plain"))
@@ -268,7 +278,7 @@ Thanks for choosing ShopFast!
             server.ehlo()
             server.starttls()
             server.ehlo()
-            server.login("kratikasharma2003@gmail.com","emmqbqfcawizxyvv" )
+            server.login(SENDER_EMAIL, SENDER_PASSWORD)
             server.sendmail(SENDER_EMAIL, to_email, msg.as_string())
 
         (f"[email_utils] ✅ Order confirmation sent → {to_email}  (order #{order_id})")

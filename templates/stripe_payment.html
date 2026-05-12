@@ -196,9 +196,7 @@
 
     <script>
         // ── Auto-detect backend base URL ──────────────────────────────────────
-        const BASE = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
-            ? "http://127.0.0.1:8000"
-            : "https://new-fastapi-e-commerce-website.onrender.com";
+        const BASE = window.location.origin;
 
         // ── Resolve parameters ────────────────────────────────────────────────
         // Priority: URL param → localStorage (set at login) → cookie fallback

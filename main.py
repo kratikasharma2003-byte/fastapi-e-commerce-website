@@ -29,7 +29,7 @@ BASE_URL = os.getenv("BASE_URL")
 
 import models, schemas, auth
 from database import engine, get_db
-from otp_store import generate_otp, verify_otp
+from otp_store import generate_otp, verify_otp, is_verified
 from email_utils import send_email, send_order_confirmation
 from models import User, Product, CartItem, Order, OrderItem, Payment
 from schemas import EmailRequest
@@ -77,6 +77,18 @@ app = FastAPI(title="ShopFast API", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+# ── TemplateResponse fix (Starlette/Jinja2 version compatibility) ────────────
+# Some Starlette versions swap the name/context arguments internally, causing
+# 'dict has no attribute split' or 'unhashable type: dict' errors.
+# This wrapper calls Jinja2 directly, bypassing the broken Starlette code path.
+from starlette.responses import HTMLResponse as _HTMLResponse
+
+def render(template_name: str, context: dict) -> _HTMLResponse:
+    tmpl = templates.env.get_template(template_name)
+    html = tmpl.render(**context)
+    return _HTMLResponse(content=html)
+# ─────────────────────────────────────────────────────────────────────────────
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # or your frontend domain
@@ -92,17 +104,26 @@ app.add_middleware(
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
+    import time
+
     start = time.time()
+
     try:
         response = await call_next(request)
+
+        process_time = time.time() - start
+
         logger.info(
-            f"{request.method} {request.url.path} - {response.status_code} "
-            f"({time.time()-start:.4f}s)"
+            f"{request.method} {request.url.path} "
+            f"- {response.status_code} "
+            f"- {process_time:.4f}s"
         )
+
         return response
+
     except Exception as e:
         logger.error(f"ERROR: {str(e)}")
-        raise e
+        raise
 
 
 @contextmanager
@@ -113,6 +134,37 @@ def db_transaction(db: Session):
     except Exception as e:
         db.rollback()
         raise e
+
+
+def _coerce_text(value, default: str = "") -> str:
+    if value is None:
+        return default
+    if isinstance(value, str):
+        return value
+    return str(value)
+
+
+def _serialize_product(product) -> dict:
+    if isinstance(product, dict):
+        return {
+            "id": product.get("id"),
+            "name": _coerce_text(product.get("name")),
+            "price": product.get("price"),
+            "description": _coerce_text(product.get("description")),
+            "image_url": _coerce_text(product.get("image_url") or product.get("image")),
+            "category": _coerce_text(product.get("category"), "General"),
+            "stock": product.get("stock") if product.get("stock") is not None else 0,
+        }
+
+    return {
+        "id": product.id,
+        "name": _coerce_text(product.name),
+        "price": product.price,
+        "description": _coerce_text(product.description),
+        "image_url": _coerce_text(product.image_url),
+        "category": _coerce_text(product.category, "General"),
+        "stock": product.stock if product.stock is not None else 0,
+    }
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 # ══════════════════════════════════════════════════════════════════
@@ -230,6 +282,13 @@ class AdminUpdateUser(BaseModel):
             raise ValueError("Role must be 'user' or 'admin'")
         return v
 
+class ProductCreate(BaseModel):
+    name: str
+    price: float
+    category: str
+    stock: int
+    image_url: Optional[str] = None
+    description: str
 
 class PaymentCompleteRequest(BaseModel):
     user_email:     EmailStr
@@ -434,12 +493,15 @@ async def forgot_password(data: schemas.ForgotPassword, db: Session = Depends(ge
     ).first()
     if not user:
         raise HTTPException(404, "Email not registered")
+    otp = generate_otp(data.email)
     try:
-        otp = generate_otp(data.email)
         send_email(data.email, "Your OTP Code", f"Your OTP is: {otp}")
         print(f"[DEV] OTP for {data.email}: {otp}")
     except Exception as e:
-        raise HTTPException(500, f"Failed to send OTP: {str(e)}")
+        # Allow the reset flow to continue locally even if SMTP isn't configured.
+        print(f"[DEV] OTP for {data.email}: {otp}")
+        print(f"[forgot-password] Email send skipped/failing: {e}")
+        return {"message": "OTP generated. Check server logs for the OTP in local development."}
     return {"message": "OTP sent to your email"}
 
 
@@ -457,6 +519,8 @@ async def reset_password(data: schemas.ResetPassword, db: Session = Depends(get_
     pwd_error = validate_password(data.new_password)
     if pwd_error:
         raise HTTPException(400, pwd_error)
+    if not is_verified(data.email):
+        raise HTTPException(400, "OTP verification required before resetting password")
     user = db.query(models.User).filter(
         models.User.email == data.email,
         or_(models.User.is_deleted == False, models.User.is_deleted == None),  # noqa: E712, E711
@@ -506,20 +570,10 @@ def search_products(
         elif sort == "newest":
             query = query.order_by(desc(models.Product.id))
 
-        return [
-            {
-                "id":          p.id,
-                "name":        p.name,
-                "price":       p.price,
-                "description": p.description,
-                "image_url":   p.image_url,
-                "category":    p.category,
-                "stock":       p.stock,
-            }
-            for p in query.all()
-        ]
+        return [_serialize_product(p) for p in query.all()]
 
-    return cache.get_or_set(cache_key, _load, TTL["product_search"])
+    data = cache.get_or_set(cache_key, _load, TTL["product_search"])
+    return [_serialize_product(item) for item in data]
 
 
 @app.get("/products", response_model=list[schemas.ProductResponse])
@@ -529,7 +583,10 @@ def get_products(db: Session = Depends(get_db)):
     # Only use cache if it has a non-empty list (stale empty cache causes demo-mode fallback)
     cached = cache.get(cache_key)
     if cached and isinstance(cached, list) and len(cached) > 0:
-        return cached
+        normalized = [_serialize_product(item) for item in cached]
+        if normalized != cached:
+            cache.set(cache_key, normalized, TTL["products_all"])
+        return normalized
 
     products = (
         db.query(models.Product)
@@ -537,18 +594,7 @@ def get_products(db: Session = Depends(get_db)):
         .order_by(models.Product.id.desc())
         .all()
     )
-    result = [
-        {
-            "id":          p.id,
-            "name":        p.name,
-            "price":       p.price,
-            "description": p.description,
-            "image_url":   p.image_url,
-            "category":    p.category,
-            "stock":       p.stock,
-        }
-        for p in products
-    ]
+    result = [_serialize_product(p) for p in products]
 
     # Never cache an empty list — that would poison the cache
     if result:
@@ -564,7 +610,10 @@ def get_product(product_id: int, db: Session = Depends(get_db)):
     cache_key = Keys.product(product_id)
     cached = cache.get(cache_key)
     if cached:
-        return cached
+        normalized = _serialize_product(cached)
+        if normalized != cached:
+            cache.set(cache_key, normalized, TTL["product_single"])
+        return normalized
 
     product = db.query(models.Product).filter(
         models.Product.id == product_id,
@@ -573,15 +622,7 @@ def get_product(product_id: int, db: Session = Depends(get_db)):
     if not product:
         raise HTTPException(404, "Product not found")
 
-    data = {
-        "id":          product.id,
-        "name":        product.name,
-        "price":       product.price,
-        "description": product.description,
-        "image_url":   product.image_url,
-        "category":    product.category,
-        "stock":       product.stock,
-    }
+    data = _serialize_product(product)
     cache.set(cache_key, data, TTL["product_single"])
     return data
 
@@ -602,7 +643,7 @@ def create_product(
         raise HTTPException(400, "Stock cannot be negative")
     product = models.Product(
         name=name, price=price, description=description,
-        image_url=image_url, category=category, stock=stock,
+        image=image_url, category=category, stock=stock,
     )
     db.add(product)
     db.commit()
@@ -638,7 +679,7 @@ def update_product(
     if name        is not None: product.name        = name
     if price       is not None: product.price       = price
     if description is not None: product.description = description
-    if image_url   is not None: product.image_url   = image_url
+    if image_url   is not None: product.image       = image_url
     if category    is not None: product.category    = category
     if stock       is not None: product.stock       = stock
     db.commit()
@@ -1073,7 +1114,25 @@ def admin_stats(db: Session = Depends(get_db)):
 
 # ══════════════════════════════════════════════════════════════════
 #  ADMIN USER MANAGEMENT ROUTES
-# ══════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════
+
+@app.post("/admin/add-product")
+def add_product(product: ProductCreate, db: Session = Depends(get_db)):
+    new_product = Product(
+        name=product.name,
+        price=product.price,
+        category=product.category,
+        stock=product.stock,
+        image=product.image_url,
+        description=product.description
+    )
+
+    db.add(new_product)
+    db.commit()
+    db.refresh(new_product)
+
+    return {"message": "Product added"}
+
 
 @app.get("/admin/users")
 def get_all_users(db: Session = Depends(get_db)):
@@ -1221,32 +1280,54 @@ def inr_to_usd(inr_amount: float) -> float:
 
 
 @app.post("/stripe/create-checkout-session")
-def create_checkout_session(data: CheckoutRequest):
+def create_checkout_session(data: CheckoutRequest, db: Session = Depends(get_db)):
     if not data.user_email:
         raise HTTPException(status_code=400, detail="Email is required")
 
     try:
-        session = stripe.checkout.Session.create(
-            payment_method_types=["card"],
-            mode="payment",
-            line_items=[{
-                "price_data": {
-                    "currency": "inr",
-                    "product_data": {
-                        "name": "ShopFast Order",
+        app_host = os.getenv("BASE_URL") or os.getenv("APP_HOST") or "http://127.0.0.1:8000"
+        with db_transaction(db):
+            order, _ = _build_order_from_cart(data.user_email, db)
+            order_id = order.id
+            order_total = round(order.total, 2)
+
+            session = stripe.checkout.Session.create(
+                payment_method_types=["card"],
+                mode="payment",
+                line_items=[{
+                    "price_data": {
+                        "currency": "inr",
+                        "product_data": {
+                            "name": f"ShopFast Order #{order_id}",
+                        },
+                        "unit_amount": int(round(order_total * 100)),
                     },
-                    "unit_amount": 14900,
+                    "quantity": 1,
+                }],
+                customer_email=data.user_email,
+                metadata={
+                    "order_id": str(order_id),
+                    "user_email": data.user_email,
                 },
-                "quantity": 1,
-            }],
-            customer_email=data.user_email,
+                success_url=f"{app_host}/stripe/success?session_id={{CHECKOUT_SESSION_ID}}&order_id={order_id}",
+                cancel_url=f"{app_host}/stripe/cancel-page?order_id={order_id}",
+            )
+            order.stripe_session_id = session.id
 
-            # ✅ FIXED HERE
-           success_url="http://localhost:8000/success",
-           cancel_url="http://localhost:8000/cancel"
-        )
+        try:
+            invalidate_cart(data.user_email)
+        except Exception:
+            pass  # Redis optional
+        try:
+            invalidate_user_orders(data.user_email, order_id=order_id)
+        except Exception:
+            pass  # Redis optional
+        try:
+            invalidate_admin_stats()
+        except Exception:
+            pass  # Redis optional
 
-        return {"checkout_url": session.url}
+        return {"checkout_url": session.url, "order_id": order_id, "total": order_total}
 
     except Exception as e:
         print("Stripe error:", str(e))
@@ -1561,58 +1642,79 @@ def home(request: Request):
 
 @app.get("/register",        response_class=HTMLResponse)
 def register_page(request: Request):
-    return templates.TemplateResponse("register.html",        {"request": request})
+    return render("register.html", {"request": request})
 
-@app.get("/login",           response_class=HTMLResponse)
+@app.get("/login")
 def login_page(request: Request):
-    return templates.TemplateResponse("login.html",           {"request": request})
+    template_name = "login.html"
+    return render("login.html", {"request": request})
 
 @app.get("/forgot-password", response_class=HTMLResponse)
 def forgot_page(request: Request):
-    return templates.TemplateResponse("forgot_password.html", {"request": request})
+    return render("forgot_password.html", {"request": request})
 
 @app.get("/verify-otp",      response_class=HTMLResponse)
 def verify_otp_page(request: Request):
-    return templates.TemplateResponse("verify_otp.html",      {"request": request})
+    return render("verify_otp.html", {"request": request})
 
 @app.get("/reset-password",  response_class=HTMLResponse)
 def reset_password_page(request: Request):
-    return templates.TemplateResponse("reset_password.html",  {"request": request})
+    return render("reset_password.html", {"request": request})
 
 @app.get("/dashboard",       response_class=HTMLResponse)
 def dashboard_page(request: Request):
-    return templates.TemplateResponse("dashboard.html",       {"request": request})
+    return render("dashboard.html", {"request": request})
 
 @app.get("/admin",           response_class=HTMLResponse)
 def admin_page(request: Request):
-    return templates.TemplateResponse("admin.html",           {"request": request})
+    return render("admin.html", {"request": request})
 
 @app.get("/admin-dashboard", response_class=HTMLResponse)
 def admin_dashboard(request: Request):
     if request.session.get("role") != "admin":
         return RedirectResponse(url="/login")
-    return templates.TemplateResponse("admin dashboard.html", {"request": request})
+    return render("admin_dashboard.html", {"request": request})
 
 @app.get("/user-dashboard",  response_class=HTMLResponse)
 def user_dashboard(request: Request):
     if request.session.get("role") != "user":
         return RedirectResponse(url="/login")
-    return templates.TemplateResponse("user_dashboard.html",  {"request": request})
+    return render("user_dashboard.html", {"request": request})
 
 @app.get("/shop",            response_class=HTMLResponse)
 def shop_page(request: Request):
-    return templates.TemplateResponse("shop.html",            {"request": request})
+    return render("shop.html", {"request": request})
 
 @app.get("/cart-page",       response_class=HTMLResponse)
 def cart_page(request: Request):
-    return templates.TemplateResponse("cart.html",            {"request": request})
+    return render("cart.html", {"request": request})
 
+
+
+
+@app.get("/success")
+def payment_success(request: Request):
+    return render("success.html", {"request": request})
 
 @app.get("/payment_success", response_class=HTMLResponse)
 def payment_success_page(request: Request):
     # This must match your file name: payment_success.html
-    return templates.TemplateResponse("payment_success.html", {"request": request})
+    return render("payment_success.html", {"request": request})
+
+@app.get("/stripe/success-page", response_class=HTMLResponse)
+def stripe_success_page(
+    request: Request,
+    order_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+):
+    total = None
+    if order_id is not None:
+        order = db.query(Order).filter(Order.id == order_id).first()
+        if order:
+            total = order.total
+
+    return render("stripe_success.html", {"request": request, "order_id": order_id, "total": total})
 
 @app.get("/stripe/cancel-page", response_class=HTMLResponse)
-def stripe_cancel_page(request: Request):
-    return templates.TemplateResponse("stripe_cancel.html",   {"request": request})
+def stripe_cancel_page(request: Request, reason: Optional[str] = None):
+    return render("stripe_cancel.html", {"request": request, "reason": reason})
