@@ -94,6 +94,7 @@ app.add_middleware(
     allow_origins=[
         "http://127.0.0.1:8000",
         "https://new-fastapi-e-commerce-website.onrender.com"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
