@@ -191,7 +191,6 @@ def _serialize_product(product) -> dict:
         "stock": product.stock if product.stock is not None else 0,
     }
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
 # ══════════════════════════════════════════════════════════════════
 #  PYDANTIC SCHEMAS
 # ══════════════════════════════════════════════════════════════════
@@ -1363,77 +1362,6 @@ def create_checkout_session(data: CheckoutRequest, db: Session = Depends(get_db)
         raise HTTPException(status_code=400, detail=str(e))
     
     
-'''@app.get("/stripe/success")
-def stripe_success(
-    request: Request,
-    session_id: str,
-    order_id: int = None,
-    db: Session = Depends(get_db),
-):
-    try:
-        session = stripe.checkout.Session.retrieve(session_id)
-    except stripe.error.StripeError:
-        return RedirectResponse(url="/stripe/cancel-page?reason=stripe_error", status_code=303)
-
-    # ✅ Get email safely
-    user_email = (
-        request.session.get("stripe_email")
-        or session.customer_email
-        or session.metadata.get("user_email")
-    )
-
-    # ✅ Get order_id safely
-    order_id = order_id or session.metadata.get("order_id")
-
-    if not order_id:
-        return RedirectResponse(url="/stripe/cancel-page?reason=missing_order_id", status_code=303)
-
-    # ✅ Fetch order
-    order = db.query(Order).filter(Order.id == int(order_id)).first()
-
-    if not order:
-        print(f"[Stripe] ❌ Order not found: {order_id}")
-        return RedirectResponse(url="/stripe/cancel-page?reason=order_not_found", status_code=303)
-
-    if order.status == "Paid":
-        return RedirectResponse(url="/stripe/success-page", status_code=303)
-
-    # ✅ Verify payment
-    if session.payment_status != "paid":
-        order.status = "Failed"
-        db.commit()
-        return RedirectResponse(url="/stripe/cancel-page?reason=not_paid", status_code=303)
-
-    payment_intent_id = session.payment_intent
-
-    existing = db.query(Payment).filter(Payment.payment_id == payment_intent_id).first()
-    if existing:
-        return RedirectResponse(url="/stripe/success-page", status_code=303)
-
-    payment = Payment(
-        order_id=order.id,
-        payment_id=payment_intent_id or session_id,
-        status="Completed",
-        method="Stripe",
-    )
-
-    db.add(payment)
-    order.status = "Paid"
-
-    try:
-        db.commit()
-    except Exception as e:
-        db.rollback()
-        print("DB Error:", e)
-        return RedirectResponse(url="/stripe/cancel-page?reason=db_error", status_code=303)
-
-    request.session.pop("stripe_email", None)
-    request.session.pop("stripe_order_id", None)
-
-    return RedirectResponse(url="/stripe/success-page", status_code=303)
-
-'''
-
 @app.get("/stripe/success")
 def stripe_success(
     request: Request,
@@ -1441,59 +1369,111 @@ def stripe_success(
     order_id: Optional[int] = None,
     db: Session = Depends(get_db),
 ):
+    logger.info(f"[stripe/success] HIT — session_id={session_id} order_id={order_id}")
+
+    # ── Step 1: Retrieve Stripe session ──────────────────────────────────────
     try:
         session = stripe.checkout.Session.retrieve(session_id)
-    except stripe.error.StripeError:
+    except Exception as e:
+        logger.error(f"[stripe/success] Stripe retrieve failed: {e}")
         return RedirectResponse(url="/stripe/cancel-page?reason=stripe_error", status_code=303)
 
-    # ✅ Get email safely
-    user_email = (
-        request.session.get("stripe_email")
-        or session.customer_email
-        or session.metadata.get("user_email")
-    )
+    logger.info(f"[stripe/success] session retrieved, payment_status={session.payment_status!r}")
 
-    # ✅ Get order_id from metadata if missing
-    order_id = order_id or session.metadata.get("order_id")
+    # ── Step 2: Safely extract metadata ──────────────────────────────────────
+    # session.metadata is a StripeObject — must use attribute access, not .get()
+    try:
+        metadata = dict(session.metadata) if session.metadata else {}
+    except Exception:
+        metadata = {}
+
+    logger.info(f"[stripe/success] metadata={metadata}")
+
+    # ── Step 3: Resolve order_id ──────────────────────────────────────────────
+    if not order_id:
+        raw = metadata.get("order_id")
+        if raw:
+            try:
+                order_id = int(raw)
+            except (ValueError, TypeError):
+                logger.error(f"[stripe/success] Bad order_id in metadata: {raw!r}")
+                return RedirectResponse(url="/stripe/cancel-page?reason=bad_order_id", status_code=303)
 
     if not order_id:
+        logger.error("[stripe/success] Missing order_id — cannot complete payment")
         return RedirectResponse(url="/stripe/cancel-page?reason=missing_order_id", status_code=303)
 
-    order = db.query(Order).filter(Order.id == int(order_id)).first()
+    logger.info(f"[stripe/success] order_id={order_id}")
 
-    if not order:
-        return RedirectResponse(url="/stripe/cancel-page?reason=order_not_found", status_code=303)
-
-    if order.status == "Paid":
-        return RedirectResponse(url="/stripe/success-page", status_code=303)
-
-    if session.payment_status != "paid":
-        order.status = "Failed"
-        db.commit()
-        return RedirectResponse(url="/stripe/cancel-page?reason=not_paid", status_code=303)
-
-    payment_intent_id = session.payment_intent
-
-    existing = db.query(Payment).filter(Payment.payment_id == payment_intent_id).first()
-
-    if not existing:
-        payment = Payment(
-            order_id=order.id,
-            payment_id=payment_intent_id or session_id,
-            status="Completed",
-            method="Stripe",
-        )
-        db.add(payment)
-
-    order.status = "Paid"
-
+    # ── Step 4: Fetch order from DB ───────────────────────────────────────────
     try:
-        db.commit()
-    except Exception:
-        db.rollback()
+        order = db.query(Order).filter(Order.id == int(order_id)).first()
+    except Exception as e:
+        logger.error(f"[stripe/success] DB query failed: {e}")
         return RedirectResponse(url="/stripe/cancel-page?reason=db_error", status_code=303)
 
-    return RedirectResponse(url="/stripe/success-page", status_code=303)
+    if not order:
+        logger.error(f"[stripe/success] Order #{order_id} not found in DB")
+        return RedirectResponse(url="/stripe/cancel-page?reason=order_not_found", status_code=303)
+
+    # Idempotency: already paid → just show success page
+    if order.status == "Paid":
+        logger.info(f"[stripe/success] Order #{order_id} already Paid")
+        return RedirectResponse(url=f"/stripe/success-page?order_id={order_id}", status_code=303)
+
+    # ── Step 5: Verify payment_status from Stripe ─────────────────────────────
+    # Use attribute access (session.payment_status), NOT session.get()
+    pay_status = session.payment_status
+    if pay_status != "paid":
+        logger.warning(f"[stripe/success] payment_status={pay_status!r} — not paid")
+        order.status = "Failed"
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
+        return RedirectResponse(url="/stripe/cancel-page?reason=not_paid", status_code=303)
+
+    # ── Step 6: Record payment idempotently ───────────────────────────────────
+    payment_intent_id = session.payment_intent or session_id
+    try:
+        existing = db.query(Payment).filter(Payment.payment_id == payment_intent_id).first()
+        if not existing:
+            db.add(Payment(
+                order_id=order.id,
+                payment_id=payment_intent_id,
+                status="Completed",
+                method="Stripe",
+            ))
+        order.status = "Paid"
+        db.commit()
+        logger.info(f"[stripe/success] ✅ Order #{order_id} marked Paid | PI={payment_intent_id}")
+    except Exception as e:
+        db.rollback()
+        logger.error(f"[stripe/success] DB commit failed: {e}")
+        return RedirectResponse(url="/stripe/cancel-page?reason=db_error", status_code=303)
+
+    # ── Step 7: Invalidate cache ──────────────────────────────────────────────
+    try:
+        invalidate_user_orders(order.user_email, order_id=order.id)
+    except Exception:
+        pass
+    try:
+        invalidate_admin_stats()
+    except Exception:
+        pass
+
+    # ── Step 8: Send confirmation email (non-fatal) ───────────────────────────
+    try:
+        items_for_email = [
+            {"name": oi.product_name, "quantity": oi.quantity, "price": oi.price}
+            for oi in order.items
+        ]
+        send_order_confirmation(order.user_email, order.id, order.total, items_for_email)
+        logger.info(f"[stripe/success] 📧 Email sent to {order.user_email}")
+    except Exception as e:
+        logger.warning(f"[stripe/success] Email failed (non-fatal): {e}")
+
+    return RedirectResponse(url=f"/stripe/success-page?order_id={order_id}", status_code=303)
 
 
 @app.get("/stripe/cancel")

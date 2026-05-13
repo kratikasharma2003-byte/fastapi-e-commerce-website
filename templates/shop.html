@@ -978,7 +978,7 @@
         </select>
     </div>
     <div class="price-range-wrap">
-        <span>$0</span>
+        <span>₹0</span>
         <input type="range" id="price-max" min="0" max="10000" value="10000" step="50" oninput="updatePriceLabel(); filterProducts()">
         <span class="price-label" id="price-label">Max</span>
     </div>
@@ -1007,7 +1007,7 @@
     </div>
     <div class="cart-items" id="cart-items-list"></div>
     <div class="cart-footer">
-        <div class="cart-total"><span>Total</span><span id="cart-total-val">$0</span></div>
+        <div class="cart-total"><span>Total</span><span id="cart-total-val">₹0</span></div>
         <button class="checkout-btn" onclick="initiateCheckout()">✅ Place Order</button>
     </div>
 </div>
@@ -1022,7 +1022,7 @@
             <img id="confirm-product-img" src="" alt="">
             <div class="mpinfo">
                 <div class="mpname" id="confirm-product-name">Product Name</div>
-                <div class="mpprice" id="confirm-product-price">$0</div>
+                <div class="mpprice" id="confirm-product-price">₹0</div>
             </div>
         </div>
         <div class="modal-btn-row">
@@ -1046,7 +1046,7 @@
             </div>
             <div class="order-success-row">
                 <span class="label">Total Amount</span>
-                <span class="val green" id="checkout-total-preview">$0</span>
+                <span class="val green" id="checkout-total-preview">₹0</span>
             </div>
         </div>
 
@@ -1086,7 +1086,7 @@
             </div>
             <div class="order-success-row">
                 <span class="label">Total Amount</span>
-                <span class="val green" id="success-order-total">$0</span>
+                <span class="val green" id="success-order-total">₹0</span>
             </div>
             <div class="order-success-row">
                 <span class="label">Payment Status</span>
@@ -1108,7 +1108,7 @@
         <div class="payment-header">
             <h3>💳 Complete Payment</h3>
             <p>Order <span id="pay-order-id-label">—</span></p>
-            <div class="payment-amount-badge" id="pay-amount-label">$0</div>
+            <div class="payment-amount-badge" id="pay-amount-label">₹0</div>
         </div>
         <div class="payment-body">
             <!-- Method selector -->
@@ -1188,7 +1188,7 @@
             </div>
             <div class="order-success-row">
                 <span class="label">Amount Paid</span>
-                <span class="val green" id="ps-amount">$0</span>
+                <span class="val green" id="ps-amount">₹0</span>
             </div>
             <div class="order-success-row">
                 <span class="label">Payment Method</span>
@@ -1386,7 +1386,7 @@ function selectCategory(cat) {
 function updatePriceLabel() {
     const val = document.getElementById("price-max").value;
     const max = document.getElementById("price-max").max;
-    document.getElementById("price-label").textContent = Number(val) >= Number(max) ? "Any" : `$${Number(val).toLocaleString()}`;
+    document.getElementById("price-label").textContent = Number(val) >= Number(max) ? "Any" : `₹${Number(val).toLocaleString("en-IN")}`;
 }
 
 // ── Smart image resolver ──────────────────────────────────────────
@@ -1540,7 +1540,7 @@ function renderProducts(products) {
                 ${starsHtml}
                 <div class="product-desc">${(p.description || "").substring(0,80)}${p.description && p.description.length > 80 ? "…" : ""}</div>
                 <div class="product-footer">
-                    <div class="product-price">$${Number(p.price).toLocaleString()}</div>
+                    <div class="product-price">₹${Number(p.price).toLocaleString("en-IN")}</div>
                     ${stockBadge}
                 </div>
                 ${actionHtml}
@@ -1837,7 +1837,7 @@ function updateCartBadge() {
 
 function renderCartSidebar() {
     const list = document.getElementById("cart-items-list");
-    document.getElementById("cart-total-val").textContent = `$${Number(cartData.total).toLocaleString()}`;
+    document.getElementById("cart-total-val").textContent = `₹${Number(cartData.total).toLocaleString("en-IN")}`;
     if (!cartData.items.length) {
         list.innerHTML = `<div class="cart-empty"><div style="font-size:40px">🛒</div><p>Your cart is empty</p></div>`;
         return;
@@ -1852,7 +1852,7 @@ function renderCartSidebar() {
                  onerror="this.src='${DEFAULT_IMAGE}'">
             <div class="cart-item-info">
                 <div class="cart-item-name">${item.name}</div>
-                <div class="cart-item-price">$${Number(item.price).toLocaleString()} each</div>
+                <div class="cart-item-price">₹${Number(item.price).toLocaleString("en-IN")} each</div>
                 <div class="qty-controls">
                     <button class="qty-btn" onclick="changeQty(${item.cart_item_id}, ${item.quantity - 1})">−</button>
                     <span class="qty-val">${item.quantity}</span>
@@ -1860,7 +1860,7 @@ function renderCartSidebar() {
                 </div>
             </div>
             <div style="text-align:right;flex-shrink:0;">
-                <div style="font-size:14px;font-weight:700;color:var(--brand);font-family:'Sora',sans-serif;">$${Number(item.subtotal).toLocaleString()}</div>
+                <div style="font-size:14px;font-weight:700;color:var(--brand);font-family:'Sora',sans-serif;">₹${Number(item.subtotal).toLocaleString("en-IN")}</div>
                 <button class="remove-btn" onclick="removeItem(${item.cart_item_id})">🗑️</button>
             </div>
         </div>`;
@@ -1890,7 +1890,7 @@ function openAddConfirm(productId) {
     pendingAddProductId = productId;
     pendingAddProduct   = product;
     document.getElementById("confirm-product-name").textContent  = product.name;
-    document.getElementById("confirm-product-price").textContent = `$${Number(product.price).toLocaleString()}`;
+    document.getElementById("confirm-product-price").textContent = `₹${Number(product.price).toLocaleString("en-IN")}`;
     const imgEl = document.getElementById("confirm-product-img");
     const resolvedImg = getProductImage(product);
     imgEl.src = resolvedImg;
@@ -2065,7 +2065,7 @@ function initiateCheckout() {
     if (!cartData.items.length) { toast("Cart is empty", "error"); return; }
     const itemCount = cartData.items.reduce((s, i) => s + i.quantity, 0);
     document.getElementById("checkout-item-count").textContent   = `${itemCount} item${itemCount !== 1 ? "s" : ""}`;
-    document.getElementById("checkout-total-preview").textContent= `$${Number(cartData.total).toLocaleString()}`;
+    document.getElementById("checkout-total-preview").textContent= `₹${Number(cartData.total).toLocaleString("en-IN")}`;
     // Reset button states
     const sb = document.getElementById("stripe-checkout-btn");
     if (sb) { sb.disabled = false; sb.style.opacity = "1"; }
@@ -2153,7 +2153,7 @@ async function confirmCheckoutStripe() {
 function openPaymentModal() {
     if (!currentOrderId) return;
     document.getElementById("pay-order-id-label").textContent = `#${currentOrderId}`;
-    document.getElementById("pay-amount-label").textContent   = `$${Number(currentOrderTotal).toLocaleString()}`;
+    document.getElementById("pay-amount-label").textContent   = `₹${Number(currentOrderTotal).toLocaleString("en-IN")}`;
     selectMethod("card");
     document.getElementById("order-modal").classList.remove("open");
     document.getElementById("payment-modal").classList.add("open");
@@ -2219,7 +2219,7 @@ async function processPayment() {
 
     document.getElementById("payment-modal").classList.remove("open");
     document.getElementById("ps-order-id").textContent = `#${currentOrderId || orderId}`;
-    document.getElementById("ps-amount").textContent   = `$${Number(currentOrderTotal).toLocaleString()}`;
+    document.getElementById("ps-amount").textContent   = `₹${Number(currentOrderTotal).toLocaleString("en-IN")}`;
     document.getElementById("ps-method").textContent   = methodLabel;
     document.getElementById("payment-success-modal").classList.add("open");
     toast("✅ Payment successful!", "success");
