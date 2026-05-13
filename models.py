@@ -78,7 +78,9 @@ class Order(Base):
     stripe_session_id = Column(String, nullable=True)
     paypal_order_id = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-
+    return_reason = Column(Text, nullable=True)
+    return_requested_at = Column(DateTime(timezone=True), nullable=True)
+    
     user = relationship("User", back_populates="orders", foreign_keys=[user_id])
     items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
     payment = relationship("Payment", back_populates="order", uselist=False)

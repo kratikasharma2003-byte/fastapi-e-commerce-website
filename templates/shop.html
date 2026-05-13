@@ -942,6 +942,112 @@
             margin: 0 auto 16px;
             animation: popIn 0.4s cubic-bezier(.34,1.56,.64,1);
         }
+        /* ══ RETURN MODALS ══════════════════════════════════════════ */
+
+        /* My Orders picker */
+        #my-orders-modal .modal-content {
+            max-width: 500px; padding: 0; overflow: hidden; max-height: 88vh;
+        }
+        .orders-modal-hdr {
+            background: linear-gradient(135deg, var(--dark), var(--mid));
+            color: white; padding: 20px 24px 16px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .orders-modal-hdr h3 { font-family: 'Sora', sans-serif; font-size: 17px; font-weight: 700; }
+        .orders-modal-hdr p { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 3px; }
+        .orders-modal-close {
+            background: rgba(255,255,255,0.12); border: none; color: white;
+            width: 30px; height: 30px; border-radius: 8px; cursor: pointer;
+            font-size: 16px; display: flex; align-items: center; justify-content: center;
+        }
+        .orders-modal-body { padding: 16px 20px; overflow-y: auto; max-height: 60vh; }
+        .order-return-card {
+            border: 1.5px solid var(--border); border-radius: 12px;
+            padding: 14px 16px; margin-bottom: 12px; background: white;
+            display: flex; justify-content: space-between; align-items: center; gap: 12px;
+        }
+        .order-return-card:last-child { margin-bottom: 0; }
+        .orc-left { flex: 1; }
+        .orc-id { font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 700; color: var(--dark); }
+        .orc-meta { font-size: 12px; color: var(--muted); margin-top: 3px; }
+        .orc-status {
+            display: inline-block; font-size: 10px; font-weight: 700; padding: 3px 10px;
+            border-radius: 20px; font-family: 'Sora', sans-serif; margin-top: 5px;
+        }
+        .status-paid     { background: #d4f8ec; color: #00856f; }
+        .status-delivered{ background: #d4eaff; color: #0069cc; }
+        .status-pending  { background: #fff3cd; color: #a07000; }
+        .status-returned { background: #ffe0e0; color: var(--red); }
+        .status-refunded { background: #ffe0e0; color: var(--red); }
+        .status-other    { background: #f0eeff; color: var(--brand); }
+        .return-order-btn {
+            padding: 8px 16px; background: linear-gradient(135deg, #e17055, #d63031);
+            color: white; border: none; border-radius: 10px; font-size: 12px;
+            font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif;
+            white-space: nowrap; transition: opacity 0.2s;
+        }
+        .return-order-btn:hover { opacity: 0.88; }
+        .return-order-btn:disabled { background: #d5d5e5; color: #aaa; cursor: not-allowed; }
+        .orders-empty { text-align: center; color: var(--muted); padding: 30px 16px; font-size: 14px; }
+
+        /* Return form modal */
+        #return-modal .modal-content { max-width: 460px; padding: 0; overflow: hidden; }
+        .return-hdr {
+            background: linear-gradient(135deg, #e17055, #d63031);
+            color: white; padding: 22px 28px 18px;
+        }
+        .return-hdr h3 { font-family: 'Sora', sans-serif; font-size: 18px; font-weight: 700; color: white; margin-bottom: 4px; }
+        .return-hdr p { font-size: 13px; color: rgba(255,255,255,0.72); }
+        .return-body { padding: 22px 28px; }
+        .return-info-box {
+            background: #fff8f8; border: 1.5px solid #ffd5d0; border-radius: 12px;
+            padding: 13px 16px; margin-bottom: 18px;
+        }
+        .return-info-row { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
+        .return-info-row .ril { color: var(--muted); }
+        .return-info-row .riv { font-weight: 700; color: var(--dark); font-family: 'Sora', sans-serif; }
+        .return-field-label {
+            font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase;
+            letter-spacing: 0.8px; margin-bottom: 6px; font-family: 'Sora', sans-serif;
+        }
+        .return-select {
+            width: 100%; padding: 11px 14px; border: 1.5px solid var(--border);
+            border-radius: 10px; font-size: 14px; font-family: 'DM Sans', sans-serif;
+            outline: none; margin-bottom: 14px; background: white; color: var(--text);
+            transition: border 0.2s; cursor: pointer;
+        }
+        .return-select:focus { border-color: #d63031; }
+        .return-textarea {
+            width: 100%; padding: 10px 14px; border: 1.5px solid var(--border);
+            border-radius: 10px; font-size: 13px; font-family: 'DM Sans', sans-serif;
+            resize: vertical; min-height: 76px; outline: none; color: var(--text);
+            margin-bottom: 16px; transition: border 0.2s; box-sizing: border-box;
+        }
+        .return-textarea:focus { border-color: #d63031; }
+        .return-submit-btn {
+            width: 100%; padding: 13px;
+            background: linear-gradient(135deg, #e17055, #d63031);
+            color: white; border: none; border-radius: 12px; font-size: 15px;
+            font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif;
+            transition: opacity 0.2s, transform 0.15s;
+        }
+        .return-submit-btn:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+        .return-submit-btn:disabled { background: #d5d5e5; color: #aaa; cursor: not-allowed; transform: none; }
+        .return-back-link {
+            display: block; text-align: center; margin-top: 12px; font-size: 13px;
+            color: var(--muted); cursor: pointer; text-decoration: underline;
+        }
+        .return-back-link:hover { color: var(--text); }
+
+        /* Return success */
+        #return-success-modal .modal-content { padding: 36px 32px; text-align: center; }
+        .return-success-icon {
+            width: 64px; height: 64px;
+            background: linear-gradient(135deg, #e17055, #d63031);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 28px; margin: 0 auto 16px;
+            animation: popIn 0.4s cubic-bezier(.34,1.56,.64,1);
+        }
     </style>
 </head>
 <body>
@@ -951,6 +1057,7 @@
     <div class="header-right">
         <a href="/dashboard" class="hdr-link">👤 My Account</a>
         <a href="/dashboard#orders" class="hdr-link">📦 Orders</a>
+        <button class="hdr-link" style="background:none;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;" onclick="openMyOrdersForReturn()">↩️ Returns</button>
         <button class="cart-btn" onclick="openCart()">
             🛒 Cart <span id="cart-count">0</span>
         </button>
@@ -1238,6 +1345,107 @@
             <!-- Reviews List -->
             <div class="reviews-list" id="reviews-list"></div>
         </div>
+    </div>
+</div>
+
+<!-- ══ My Orders — Pick Order to Return ══════════════════════════ -->
+<div id="my-orders-modal" class="modal">
+    <div class="modal-content">
+        <div class="orders-modal-hdr">
+            <div>
+                <h3>↩️ Return a Product</h3>
+                <p>Select an eligible order to return</p>
+            </div>
+            <button class="orders-modal-close" onclick="closeMyOrdersModal()">✕</button>
+        </div>
+        <div class="orders-modal-body" id="orders-list-body">
+            <div class="orders-empty">⏳ Loading your orders...</div>
+        </div>
+    </div>
+</div>
+
+<!-- ══ Return Request Form ════════════════════════════════════════ -->
+<div id="return-modal" class="modal">
+    <div class="modal-content">
+        <div class="return-hdr">
+            <h3>↩️ Request Return</h3>
+            <p>Tell us why you want to return this order</p>
+        </div>
+        <div class="return-body">
+            <div class="return-info-box">
+                <div class="return-info-row">
+                    <span class="ril">Order ID</span>
+                    <span class="riv" id="ret-order-id">—</span>
+                </div>
+                <div class="return-info-row">
+                    <span class="ril">Amount Paid</span>
+                    <span class="riv" id="ret-order-total">—</span>
+                </div>
+                <div class="return-info-row">
+                    <span class="ril">Items</span>
+                    <span class="riv" id="ret-order-items">—</span>
+                </div>
+                <div class="return-info-row">
+                    <span class="ril">Current Status</span>
+                    <span class="riv" id="ret-order-status">—</span>
+                </div>
+            </div>
+
+            <div class="return-field-label">Reason for Return *</div>
+            <select class="return-select" id="return-reason-select">
+                <option value="">— Select a reason —</option>
+                <option value="Damaged / Defective product">Damaged / Defective product</option>
+                <option value="Wrong item received">Wrong item received</option>
+                <option value="Item not as described">Item not as described</option>
+                <option value="Changed my mind">Changed my mind</option>
+                <option value="Size / fit issue">Size / fit issue</option>
+                <option value="Better price found elsewhere">Better price found elsewhere</option>
+                <option value="Missing parts / accessories">Missing parts / accessories</option>
+                <option value="Other">Other</option>
+            </select>
+
+            <div class="return-field-label">Additional Details (optional)</div>
+            <textarea class="return-textarea" id="return-details"
+                placeholder="Describe the issue in more detail..."></textarea>
+
+            <button class="return-submit-btn" id="return-submit-btn" onclick="submitReturn()">
+                ↩️ Submit Return Request
+            </button>
+            <span class="return-back-link" onclick="closeReturnForm()">← Back to Orders</span>
+        </div>
+    </div>
+</div>
+
+<!-- ══ Return Success ════════════════════════════════════════════ -->
+<div id="return-success-modal" class="modal">
+    <div class="modal-content">
+        <div class="return-success-icon">↩️</div>
+        <h3 style="font-family:'Sora',sans-serif;font-size:20px;color:var(--dark);margin-bottom:8px;">
+            Return Request Submitted!
+        </h3>
+        <p style="color:var(--muted);font-size:14px;margin-bottom:20px;line-height:1.6;">
+            We've received your return request. Our team will review it within <strong>1–2 business days</strong>
+            and email you the next steps.
+        </p>
+        <div class="order-success-details">
+            <div class="order-success-row">
+                <span class="label">Order ID</span>
+                <span class="val" id="rs-order-id">—</span>
+            </div>
+            <div class="order-success-row">
+                <span class="label">Reason</span>
+                <span class="val" id="rs-reason" style="font-size:12px;text-align:right;max-width:200px;">—</span>
+            </div>
+            <div class="order-success-row">
+                <span class="label">Status</span>
+                <span class="val" style="color:#e17055;">↩️ Return Requested</span>
+            </div>
+        </div>
+        <button class="modal-ok-btn" onclick="closeReturnSuccess()"
+            style="width:100%;padding:13px;font-size:15px;margin-top:16px;
+                   background:linear-gradient(135deg,#e17055,#d63031);">
+            OK, Got It
+        </button>
     </div>
 </div>
 
@@ -2253,6 +2461,170 @@ function toast(msg, type = "") {
     el.className = `show ${type}`;
     clearTimeout(el._t);
     el._t = setTimeout(() => el.className = "", 3500);
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  RETURN PRODUCT SYSTEM
+// ══════════════════════════════════════════════════════════════════
+
+let returnOrderData = null;  // holds the order being returned
+
+// Status badge helper
+function statusClass(status) {
+    const s = (status || "").toLowerCase();
+    if (s === "paid")               return "status-paid";
+    if (s === "delivered")          return "status-delivered";
+    if (s === "pending")            return "status-pending";
+    if (s === "return requested" || s === "returned" || s === "refunded") return "status-returned";
+    return "status-other";
+}
+
+// Open the order-picker modal and load user's orders
+async function openMyOrdersForReturn() {
+    const userEmail = localStorage.getItem("email") || "";
+    if (!userEmail) {
+        toast("Please log in to request a return", "error");
+        setTimeout(() => { window.location.href = "/login"; }, 1500);
+        return;
+    }
+
+    document.getElementById("my-orders-modal").classList.add("open");
+    const body = document.getElementById("orders-list-body");
+    body.innerHTML = `<div class="orders-empty">⏳ Loading your orders...</div>`;
+
+    try {
+        const res = await fetch(`${BASE}/orders?email=${encodeURIComponent(userEmail)}`, {
+            credentials: "include",
+        });
+        if (!res.ok) throw new Error(`Server error ${res.status}`);
+        const orders = await res.json();
+
+        if (!orders || !orders.length) {
+            body.innerHTML = `<div class="orders-empty">😞 You have no orders yet.</div>`;
+            return;
+        }
+
+        body.innerHTML = orders.map(o => {
+            const isEligible = ["Paid", "Delivered"].includes(o.status);
+            const isAlreadyReturned = ["Return Requested", "Returned", "Refunded"].includes(o.status);
+            const itemCount = (o.items || []).length;
+            const itemNames = (o.items || []).slice(0, 2).map(i => i.product_name).join(", ");
+            const moreItems = itemCount > 2 ? ` +${itemCount - 2} more` : "";
+
+            let btnHtml;
+            if (isAlreadyReturned) {
+                btnHtml = `<button class="return-order-btn" disabled>Already Returned</button>`;
+            } else if (isEligible) {
+                btnHtml = `<button class="return-order-btn"
+                    onclick="openReturnForm(${o.order_id}, ${o.total}, '${o.status}',
+                    '${(itemNames + moreItems).replace(/'/g,"&#39;")}')">
+                    ↩️ Return
+                </button>`;
+            } else {
+                btnHtml = `<button class="return-order-btn" disabled title="Only Paid or Delivered orders can be returned">Not Eligible</button>`;
+            }
+
+            return `<div class="order-return-card">
+                <div class="orc-left">
+                    <div class="orc-id">Order #${o.order_id}</div>
+                    <div class="orc-meta">
+                        ₹${Number(o.total).toLocaleString("en-IN")} &nbsp;·&nbsp;
+                        ${itemCount} item${itemCount !== 1 ? "s" : ""}
+                        ${itemNames ? `<br><span style="color:var(--text);font-size:11px;">${itemNames}${moreItems}</span>` : ""}
+                    </div>
+                    <span class="orc-status ${statusClass(o.status)}">${o.status}</span>
+                </div>
+                ${btnHtml}
+            </div>`;
+        }).join("");
+
+    } catch (err) {
+        body.innerHTML = `<div class="orders-empty">❌ Could not load orders. Please try again.</div>`;
+        console.warn("[openMyOrdersForReturn]", err.message);
+    }
+}
+
+function closeMyOrdersModal() {
+    document.getElementById("my-orders-modal").classList.remove("open");
+}
+
+// Open the return form pre-filled with selected order data
+function openReturnForm(orderId, total, status, items) {
+    returnOrderData = { orderId, total, status, items };
+    document.getElementById("ret-order-id").textContent    = `#${orderId}`;
+    document.getElementById("ret-order-total").textContent = `₹${Number(total).toLocaleString("en-IN")}`;
+    document.getElementById("ret-order-items").textContent = items || "—";
+    document.getElementById("ret-order-status").textContent= status;
+    document.getElementById("return-reason-select").value  = "";
+    document.getElementById("return-details").value        = "";
+    const btn = document.getElementById("return-submit-btn");
+    btn.disabled = false;
+    btn.textContent = "↩️ Submit Return Request";
+
+    document.getElementById("my-orders-modal").classList.remove("open");
+    document.getElementById("return-modal").classList.add("open");
+}
+
+function closeReturnForm() {
+    document.getElementById("return-modal").classList.remove("open");
+    openMyOrdersForReturn();   // go back to order picker
+}
+
+// Submit the return request to the backend
+async function submitReturn() {
+    if (!returnOrderData) return;
+
+    const reason = document.getElementById("return-reason-select").value.trim();
+    if (!reason) { toast("Please select a reason for the return", "error"); return; }
+
+    const details    = document.getElementById("return-details").value.trim();
+    const fullReason = details ? `${reason} — ${details}` : reason;
+    const userEmail  = localStorage.getItem("email") || "";
+    if (!userEmail) { toast("Please log in", "error"); return; }
+
+    const btn = document.getElementById("return-submit-btn");
+    btn.disabled = true;
+    btn.textContent = "⏳ Submitting...";
+
+    try {
+        const res = await fetch(`${BASE}/returns/request`, {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+                user_email: userEmail,
+                order_id:   returnOrderData.orderId,
+                reason:     fullReason,
+            }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+            toast(data.detail || "Could not submit return request", "error");
+            btn.disabled = false;
+            btn.textContent = "↩️ Submit Return Request";
+            return;
+        }
+
+        // Success — show confirmation modal
+        document.getElementById("return-modal").classList.remove("open");
+        document.getElementById("rs-order-id").textContent = `#${returnOrderData.orderId}`;
+        document.getElementById("rs-reason").textContent   = reason;
+        document.getElementById("return-success-modal").classList.add("open");
+        toast("Return request submitted ✓", "success");
+
+    } catch (err) {
+        toast("Network error. Please try again.", "error");
+        btn.disabled = false;
+        btn.textContent = "↩️ Submit Return Request";
+        console.warn("[submitReturn]", err.message);
+    }
+}
+
+function closeReturnSuccess() {
+    document.getElementById("return-success-modal").classList.remove("open");
+    returnOrderData = null;
 }
 
 function logout() { localStorage.clear(); window.location.href = "/login"; }

@@ -321,6 +321,13 @@ class PaymentCompleteRequest(BaseModel):
     amount:         float
 
 
+class ReturnRequest(BaseModel):
+    user_email: EmailStr
+    order_id:   int
+    reason:     str
+    items:      Optional[list] = None  # list of {product_name, quantity}
+
+
 # ── Helpers ──────────────────────────────────────────────────────
 
 ADMIN_EMAILS = {
@@ -1642,6 +1649,171 @@ def payment_complete(data: PaymentCompleteRequest, db: Session = Depends(get_db)
 
 
 # ══════════════════════════════════════════════════════════════════
+#  RETURN ROUTES
+# ══════════════════════════════════════════════════════════════════
+
+# ══════════════════════════════════════════════════════════════════
+#  RETURN ROUTES
+# ══════════════════════════════════════════════════════════════════
+
+@app.post("/returns/request")
+def request_return(data: ReturnRequest, db: Session = Depends(get_db)):
+    """User submits a return request for a Delivered or Paid order."""
+    order = db.query(Order).filter(
+        Order.id == data.order_id,
+        Order.user_email == data.user_email,
+    ).first()
+    if not order:
+        raise HTTPException(404, "Order not found")
+    if order.status not in ("Paid", "Delivered"):
+        raise HTTPException(400, f"Returns are only allowed for Paid or Delivered orders. Current status: {order.status}")
+    if order.status == "Return Requested":
+        raise HTTPException(400, "A return has already been requested for this order")
+    if order.status in ("Returned", "Refunded"):
+        raise HTTPException(400, "This order has already been returned or refunded")
+
+    order.status = "Return Requested"
+    order.return_reason = data.reason
+    order.return_requested_at = _now_utc()
+
+    try:
+        db.commit()
+        db.refresh(order)
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(500, str(e))
+
+    try:
+        invalidate_user_orders(data.user_email, order_id=data.order_id)
+        invalidate_admin_stats()
+    except Exception:
+        pass
+
+    try:
+        send_email(
+            data.user_email,
+            "Return Request Received — ShopFast",
+            f"Hi,\n\nWe received your return request for Order #{data.order_id}.\n"
+            f"Reason: {data.reason}\n\n"
+            "Our team will review it within 1–2 business days.\n\nShopFast Team",
+        )
+    except Exception:
+        pass
+
+    return {
+        "message": "Return request submitted successfully",
+        "order_id": data.order_id,
+        "status": "Return Requested",
+    }
+
+
+@app.get("/returns")
+def get_user_returns(email: str = Query(...), db: Session = Depends(get_db)):
+    """Get all orders with return-related statuses for a user."""
+    orders = db.query(Order).filter(
+        Order.user_email == email,
+        Order.status.in_(["Return Requested", "Return Approved", "Returned", "Refunded"]),
+    ).order_by(Order.created_at.desc()).all()
+    return [
+        {
+            "order_id":             o.id,
+            "total":                o.total,
+            "status":               o.status,
+            "return_reason":        o.return_reason or "",
+            "return_requested_at":  str(o.return_requested_at) if o.return_requested_at else "",
+            "created_at":           str(o.created_at),
+        }
+        for o in orders
+    ]
+
+
+@app.get("/admin/returns")
+def admin_get_returns(db: Session = Depends(get_db)):
+    """Admin: list all return requests."""
+    orders = db.query(Order).filter(
+        Order.status.in_(["Return Requested", "Return Approved", "Returned", "Refunded"]),
+    ).order_by(Order.created_at.desc()).all()
+    return [
+        {
+            "order_id":             o.id,
+            "user_name":            o.user_name,
+            "email":                o.user_email,
+            "total":                o.total,
+            "status":               o.status,
+            "return_reason":        o.return_reason or "",
+            "return_requested_at":  str(o.return_requested_at) if o.return_requested_at else "",
+            "created_at":           str(o.created_at),
+            "items": [
+                {"product": i.product_name, "qty": i.quantity, "price": i.price}
+                for i in o.items
+            ],
+        }
+        for o in orders
+    ]
+
+
+@app.put("/admin/returns/{order_id}/approve")
+def admin_approve_return(order_id: int, db: Session = Depends(get_db)):
+    """Admin approves a return → marks order Refunded and notifies user."""
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if not order:
+        raise HTTPException(404, "Order not found")
+    if order.status != "Return Requested":
+        raise HTTPException(400, f"Cannot approve — current status: {order.status}")
+    order.status = "Refunded"
+    try:
+        db.commit()
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(500, str(e))
+    try:
+        invalidate_user_orders(order.user_email, order_id=order_id)
+        invalidate_admin_stats()
+    except Exception:
+        pass
+    try:
+        send_email(
+            order.user_email,
+            "Return Approved — Refund Initiated — ShopFast",
+            f"Hi,\n\nYour return for Order #{order_id} has been approved.\n"
+            f"A refund of ₹{order.total} will be credited within 5–7 business days.\n\nShopFast Team",
+        )
+    except Exception:
+        pass
+    return {"message": "Return approved and refund initiated", "order_id": order_id, "status": "Refunded"}
+
+
+@app.put("/admin/returns/{order_id}/reject")
+def admin_reject_return(order_id: int, db: Session = Depends(get_db)):
+    """Admin rejects a return request → reverts status to Paid."""
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if not order:
+        raise HTTPException(404, "Order not found")
+    if order.status != "Return Requested":
+        raise HTTPException(400, f"Cannot reject — current status: {order.status}")
+    order.status = "Paid"
+    try:
+        db.commit()
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(500, str(e))
+    try:
+        invalidate_user_orders(order.user_email, order_id=order_id)
+    except Exception:
+        pass
+    try:
+        send_email(
+            order.user_email,
+            "Return Request Update — ShopFast",
+            f"Hi,\n\nYour return request for Order #{order_id} could not be approved at this time.\n"
+            "Please contact support if you have any questions.\n\nShopFast Team",
+        )
+    except Exception:
+        pass
+    return {"message": "Return request rejected", "order_id": order_id, "status": "Paid"}
+
+
+# ══════════════════════════════════════════════════════════════════
 #  HTML PAGE ROUTES
 # ══════════════════════════════════════════════════════════════════
 
@@ -1699,11 +1871,19 @@ def cart_page(request: Request):
     return render("cart.html", {"request": request})
 
 
-
-
 @app.get("/success")
-def payment_success(request: Request):
-    return render("success.html", {"request": request})
+async def success(request: Request):
+    return templates.TemplateResponse(
+        "success.html",
+        {"request": request}
+    )
+
+@app.get("/cancel")
+async def cancel(request: Request):
+    return templates.TemplateResponse(
+        "cancel.html",
+        {"request": request}
+    )
 
 @app.get("/payment_success", response_class=HTMLResponse)
 def payment_success_page(request: Request):
